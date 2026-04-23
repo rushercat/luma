@@ -2343,54 +2343,83 @@ function matrixToEuler(m) {
 // Per-frame brightness + Laplacian-variance sharpness over a face ROI.
 function measureFrameQuality(video, minX, minY, maxX, maxY) {
   const vw = video.videoWidth || 0, vh = video.videoHeight || 0;
-  if (!vw || !vh) return { brightness: 0, sharpness: 0 };
+  if (!vw || !vh) return { brightness: 0, sharpness: 0, sideDelta: 0, sideLit: false, effectiveBrightness: 0 };
   const x = Math.max(0, Math.floor(minX * vw));
   const y = Math.max(0, Math.floor(minY * vh));
   const w = Math.min(vw - x, Math.max(1, Math.floor((maxX - minX) * vw)));
   const h = Math.min(vh - y, Math.max(1, Math.floor((maxY - minY) * vh)));
-  if (w < 20 || h < 20) return { brightness: 0, sharpness: 0 };
+  if (w < 20 || h < 20) return { brightness: 0, sharpness: 0, sideDelta: 0, sideLit: false, effectiveBrightness: 0 };
 
   const TW = 64, TH = 64;
   const c = document.createElement('canvas');
   c.width = TW; c.height = TH;
   const ctx = c.getContext('2d', { willReadFrequently: true });
   try { ctx.drawImage(video, x, y, w, h, 0, 0, TW, TH); }
-  catch (_) { return { brightness: 0, sharpness: 0 }; }
+  catch (_) { return { brightness: 0, sharpness: 0, sideDelta: 0, sideLit: false, effectiveBrightness: 0 }; }
   const data = ctx.getImageData(0, 0, TW, TH).data;
 
-  // Luma + running sum for brightness.
+  // Per-pixel luma + left/right half accumulators.
+  // We split at TW/2 to detect single-sided lighting (window / lamp / phone torch).
   const luma = new Float32Array(TW * TH);
   let lumaSum = 0;
-  for (let i = 0, j = 0; i < data.length; i += 4, j++) {
-    const L = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-    luma[j] = L;
-    lumaSum += L;
+  let leftSum = 0, leftN = 0, rightSum = 0, rightN = 0;
+  const HALF = TW >> 1;
+  for (let yy = 0; yy < TH; yy++) {
+    for (let xx = 0; xx < TW; xx++) {
+      const i = (yy * TW + xx) * 4;
+      const L = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+      const j = yy * TW + xx;
+      luma[j] = L; lumaSum += L;
+      if (xx < HALF) { leftSum += L;  leftN++;  }
+      else           { rightSum += L; rightN++; }
+    }
   }
   const brightness = lumaSum / (TW * TH);
+  const leftMean  = leftSum  / Math.max(1, leftN);
+  const rightMean = rightSum / Math.max(1, rightN);
+  const sideDelta = Math.abs(leftMean - rightMean);
+  const brightSideMean = Math.max(leftMean, rightMean);
+  const sideLit   = sideDelta >= 35;        // ~14% luma delta = noticeable cross-face bias
 
-  // Laplacian 3x3 kernel → variance of response.
+  // Under side lighting we treat the brighter half as "effective brightness",
+  // so a well-lit cheek doesn't get rejected just because the other side is
+  // in shadow. Under even lighting we just use the average.
+  const effectiveBrightness = sideLit
+    ? (0.65 * brightSideMean + 0.35 * brightness)
+    : brightness;
+
+  // Laplacian 3x3 → std-dev of response.
+  // When side-lit, compute sharpness over the BRIGHT half only: the dark side
+  // carries almost no gradient, which would otherwise tank the variance.
+  const xStart = sideLit ? (leftMean > rightMean ? 1 : HALF)      : 1;
+  const xEnd   = sideLit ? (leftMean > rightMean ? HALF : TW - 1) : TW - 1;
   let lSum = 0, lCount = 0;
   const lap = new Float32Array(TW * TH);
   for (let yy = 1; yy < TH - 1; yy++) {
-    for (let xx = 1; xx < TW - 1; xx++) {
+    for (let xx = xStart; xx < xEnd; xx++) {
       const i = yy * TW + xx;
       const v = -4 * luma[i] + luma[i - 1] + luma[i + 1] + luma[i - TW] + luma[i + TW];
       lap[i] = v; lSum += v; lCount++;
     }
   }
+  lCount = Math.max(1, lCount);
   const mean = lSum / lCount;
   let variance = 0;
   for (let yy = 1; yy < TH - 1; yy++) {
-    for (let xx = 1; xx < TW - 1; xx++) {
+    for (let xx = xStart; xx < xEnd; xx++) {
       const i = yy * TW + xx;
       const d = lap[i] - mean;
       variance += d * d;
     }
   }
   variance /= lCount;
+
   return {
     brightness: Math.round(brightness),
+    effectiveBrightness: Math.round(effectiveBrightness),
     sharpness: Math.round(Math.sqrt(variance) * 10) / 10,
+    sideDelta: Math.round(sideDelta),
+    sideLit,
   };
 }
 
@@ -2429,6 +2458,7 @@ function Scanner({ scanState, onScan, tone, results }) {
   const [hud, setHud] = useState({
     centered: false, coverage: 0, yawDeg: 0, pitchDeg: 0,
     brightness: 0, sharpness: 0, blinkL: 0, blinkR: 0, faceSeen: false,
+    sideLit: false, sideDelta: 0, effectiveBrightness: 0,
   });
   const [errMsg, setErrMsg] = useState(null);
 
@@ -2595,6 +2625,8 @@ function Scanner({ scanState, onScan, tone, results }) {
         centered, coverage: Math.round(coverage * 100),
         yawDeg, pitchDeg,
         brightness: q.brightness, sharpness: q.sharpness,
+        sideLit: !!q.sideLit, sideDelta: q.sideDelta || 0,
+        effectiveBrightness: q.effectiveBrightness || q.brightness,
         blinkL, blinkR, faceSeen: true,
       });
     }
@@ -2652,8 +2684,13 @@ function Scanner({ scanState, onScan, tone, results }) {
     } else if (s.phase === 'locking') {
       const yawOK  = Math.abs(yawDeg)  < YAW_LOCK_DEG;
       const pitchOK = Math.abs(pitchDeg) < PITCH_LOCK_DEG;
-      const brightOK = q.brightness >= MIN_BRIGHTNESS && q.brightness <= MAX_BRIGHTNESS;
-      const sharpOK  = q.sharpness  >= MIN_SHARPNESS;
+      // Auto-adapt for side-lit scenes: measure the bright half only for
+      // brightness, and relax the sharpness floor since one half has no
+      // visible texture. These still reject truly unusable frames.
+      const brightProbe = q.sideLit ? q.effectiveBrightness : q.brightness;
+      const sharpFloor  = q.sideLit ? Math.max(3.5, MIN_SHARPNESS - 2.5) : MIN_SHARPNESS;
+      const brightOK = brightProbe >= MIN_BRIGHTNESS && brightProbe <= MAX_BRIGHTNESS;
+      const sharpOK  = q.sharpness  >= sharpFloor;
       const poseOK = yawOK && pitchOK && centered && coverage >= 0.62;
       const qualityOK = poseOK && brightOK && sharpOK;
 
@@ -2808,6 +2845,7 @@ function Scanner({ scanState, onScan, tone, results }) {
     !hud.faceSeen ? 'No face detected — centre yourself in the oval.' :
     !hud.centered ? 'Move closer to the centre of the oval.' :
     hud.coverage < 70 ? `Move closer — ${hud.coverage}% coverage (need 70%)` :
+    hud.sideLit    ? 'Strong side lighting detected — adapting…' :
     'Hold still…';
 
   const promptTxt =
@@ -2827,10 +2865,16 @@ function Scanner({ scanState, onScan, tone, results }) {
       : phase === 'blink' ? '◉'
       : null;
 
+  // Under strong one-sided lighting we grade off the bright half, not the mean —
+  // this matches the actual capture gate so the HUD doesn't show a false red.
+  const brightProbe = hud.sideLit && hud.effectiveBrightness
+    ? hud.effectiveBrightness
+    : hud.brightness;
+  const sharpFloorUI = hud.sideLit ? Math.max(3.5, MIN_SHARPNESS - 2.5) : MIN_SHARPNESS;
   const metricOK = {
     yaw:   Math.abs(hud.yawDeg) < YAW_LOCK_DEG,
-    bright: hud.brightness >= MIN_BRIGHTNESS && hud.brightness <= MAX_BRIGHTNESS,
-    sharp:  hud.sharpness  >= MIN_SHARPNESS,
+    bright: brightProbe >= MIN_BRIGHTNESS && brightProbe <= MAX_BRIGHTNESS,
+    sharp:  hud.sharpness  >= sharpFloorUI,
     cover:  hud.coverage   >= 70,
   };
 
@@ -2942,7 +2986,9 @@ function Scanner({ scanState, onScan, tone, results }) {
               <div className="bio-metric-val">{hud.yawDeg.toFixed(1)}°</div>
             </div>
             <div className={`bio-metric ${metricOK.bright ? 'ok' : 'bad'}`}>
-              <div className="bio-metric-lbl">Light</div>
+              <div className="bio-metric-lbl">
+                Light{hud.sideLit && <span style={{marginLeft:6,fontSize:'9px',color:'#f5b944',letterSpacing:'.08em'}}>◐ SIDE</span>}
+              </div>
               <div className="bio-metric-val">{hud.brightness}</div>
             </div>
             <div className={`bio-metric ${metricOK.sharp ? 'ok' : 'bad'}`}>
