@@ -2232,7 +2232,9 @@ async function analyzeFaceWithApi(input){
 // Resilience: we try multiple CDNs in order. Whichever loads the JS is also
 // used for the WASM files, so the SIMD/threaded binaries stay on the same
 // origin as the ESM bundle (avoids mid-init CORS weirdness).
-const MP_VERSION   = '0.10.22';
+// Note: `0.10.22` is NOT a published stable release on npm (only a pre-release
+// tag exists). The last real stable before it is `0.10.21`.
+const MP_VERSION   = '0.10.21';
 const MP_SOURCES   = [
   { esm: `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${MP_VERSION}/vision_bundle.mjs`,
     wasm:`https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${MP_VERSION}/wasm` },
