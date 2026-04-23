@@ -2228,18 +2228,51 @@ async function analyzeFaceWithApi(input){
 // ── MediaPipe Face Landmarker (478-landmark, blendshapes, pose matrix) ──────
 // Loaded lazily via dynamic ESM import so the rest of the app stays on the
 // classic script pipeline. All inference happens locally (WASM + GPU delegate).
-const MP_VISION_ESM = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/vision_bundle.mjs';
-const MP_WASM_BASE  = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/wasm';
-const MP_MODEL_URL  = 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task';
+//
+// Resilience: we try multiple CDNs in order. Whichever loads the JS is also
+// used for the WASM files, so the SIMD/threaded binaries stay on the same
+// origin as the ESM bundle (avoids mid-init CORS weirdness).
+const MP_VERSION   = '0.10.22';
+const MP_SOURCES   = [
+  { esm: `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${MP_VERSION}/vision_bundle.mjs`,
+    wasm:`https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${MP_VERSION}/wasm` },
+  { esm: `https://unpkg.com/@mediapipe/tasks-vision@${MP_VERSION}/vision_bundle.mjs`,
+    wasm:`https://unpkg.com/@mediapipe/tasks-vision@${MP_VERSION}/wasm` },
+  { esm: `https://esm.sh/@mediapipe/tasks-vision@${MP_VERSION}/vision_bundle.mjs`,
+    wasm:`https://esm.sh/@mediapipe/tasks-vision@${MP_VERSION}/wasm` },
+];
+const MP_MODEL_URL = 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task';
 let __mpFaceLandmarker = null;
 let __mpFaceLandmarkerPromise = null;
+
+async function loadMpVisionWithFallback(){
+  let lastErr = null;
+  for (const src of MP_SOURCES) {
+    try {
+      const vision = await import(/* @vite-ignore */ src.esm);
+      if (vision && vision.FilesetResolver && vision.FaceLandmarker) {
+        return { vision, wasmBase: src.wasm, cdn: src.esm };
+      }
+      lastErr = new Error('Module loaded but FaceLandmarker missing from ' + src.esm);
+    } catch (e) {
+      console.warn('[luma] MediaPipe CDN failed, trying next:', src.esm, e && e.message);
+      lastErr = e;
+    }
+  }
+  throw new Error(
+    'Could not load MediaPipe Face Landmarker. Every CDN failed — check your ' +
+    'internet connection / ad-blocker / browser extensions. Last error: ' +
+    (lastErr && (lastErr.message || lastErr.toString()))
+  );
+}
+
 async function ensureFaceLandmarker(){
   if (__mpFaceLandmarker) return __mpFaceLandmarker;
   if (__mpFaceLandmarkerPromise) return __mpFaceLandmarkerPromise;
   __mpFaceLandmarkerPromise = (async () => {
-    const vision = await import(/* @vite-ignore */ MP_VISION_ESM);
+    const { vision, wasmBase } = await loadMpVisionWithFallback();
     const { FilesetResolver, FaceLandmarker } = vision;
-    const resolver = await FilesetResolver.forVisionTasks(MP_WASM_BASE);
+    const resolver = await FilesetResolver.forVisionTasks(wasmBase);
     let landmarker;
     try {
       landmarker = await FaceLandmarker.createFromOptions(resolver, {
@@ -2262,7 +2295,11 @@ async function ensureFaceLandmarker(){
     }
     __mpFaceLandmarker = landmarker;
     return landmarker;
-  })();
+  })().catch(err => {
+    // Reset the promise so a future attempt can retry all CDNs cleanly.
+    __mpFaceLandmarkerPromise = null;
+    throw err;
+  });
   return __mpFaceLandmarkerPromise;
 }
 
