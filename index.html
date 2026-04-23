@@ -2463,8 +2463,8 @@ function Scanner({ scanState, onScan, tone, results }) {
   const [errMsg, setErrMsg] = useState(null);
 
   const YAW_LIVENESS = 0.32;   // ~18° — liveness challenge threshold
-  const YAW_LOCK_DEG = 6;       // face-forward gate (degrees)
-  const PITCH_LOCK_DEG = 10;    // head-level gate (degrees)
+  const YAW_LOCK_DEG = 8;       // face-forward gate (degrees) — laptop webcams above screen push this
+  const PITCH_LOCK_DEG = 16;    // head-level gate (degrees) — laptop webcams above screen push this
   const MIN_BRIGHTNESS = 90;    // avg luma floor (0..255)
   const MAX_BRIGHTNESS = 225;   // avoid blown highlights
   const MIN_SHARPNESS = 6;      // Laplacian std-dev floor
@@ -2589,8 +2589,8 @@ function Scanner({ scanState, onScan, tone, results }) {
     const dy = (faceCy - 0.5) / OVAL_RY;
     const insideOval = (dx * dx + dy * dy) < 1.0;
     const centered = insideOval
-      && Math.abs(faceCx - 0.5) < 0.09
-      && Math.abs(faceCy - 0.5) < 0.09;
+      && Math.abs(faceCx - 0.5) < 0.13
+      && Math.abs(faceCy - 0.5) < 0.13;
     // "70% of the oval" = face bounding box ~70% of the oval's bounding box
     const coverage = Math.min(1,
       Math.max(faceW / (2 * OVAL_RX), faceH / (2 * OVAL_RY)));
@@ -2676,6 +2676,7 @@ function Scanner({ scanState, onScan, tone, results }) {
         s.challenges.blink = true;
         s.phase = 'locking';
         s.lockStart = now;
+        s.failCounts = { yaw:0, pitch:0, centered:0, coverage:0, bright:0, sharp:0 };
         setChallenges({ ...s.challenges });
         setPhase('locking');
       } else if (now - s.challengeStart > 10000) {
@@ -2693,6 +2694,17 @@ function Scanner({ scanState, onScan, tone, results }) {
       const sharpOK  = q.sharpness  >= sharpFloor;
       const poseOK = yawOK && pitchOK && centered && coverage >= 0.62;
       const qualityOK = poseOK && brightOK && sharpOK;
+
+      // Track which gate failed most often so the bail message can be useful.
+      s.failCounts = s.failCounts || { yaw:0, pitch:0, centered:0, coverage:0, bright:0, sharp:0 };
+      if (!qualityOK) {
+        if (!yawOK)       s.failCounts.yaw++;
+        if (!pitchOK)     s.failCounts.pitch++;
+        if (!centered)    s.failCounts.centered++;
+        if (coverage < 0.62) s.failCounts.coverage++;
+        if (!brightOK)    s.failCounts.bright++;
+        if (!sharpOK)     s.failCounts.sharp++;
+      }
 
       if (qualityOK) {
         // Snapshot current frame, score it, remember top-3
@@ -2720,7 +2732,20 @@ function Scanner({ scanState, onScan, tone, results }) {
         return;
       }
       if (now - s.lockStart > 10000) {
-        return bail('Could not get a clear frame — improve lighting / hold still.');
+        // Name the single biggest offender so the user knows what to fix.
+        const fc = s.failCounts || {};
+        const reasons = {
+          pitch:    'tilt your head less (look straight at camera)',
+          yaw:      'face the camera more squarely',
+          centered: 'center your face in the oval',
+          coverage: 'move closer to the camera',
+          bright:   'improve lighting',
+          sharp:    'hold still / clean the lens',
+        };
+        let worst = null, worstN = 0;
+        for (const k in fc) { if (fc[k] > worstN) { worstN = fc[k]; worst = k; } }
+        const hint = worst && reasons[worst] ? ` — ${reasons[worst]}` : '';
+        return bail('Could not get a clear frame' + hint + '.');
       }
     }
 
