@@ -67,9 +67,13 @@ create table if not exists public.preferences (
   prefs jsonb,                -- e.g. ["Cruelty-free","Vegan"]
   concerns jsonb,             -- e.g. ["Acne","Dryness"]
   coverage text,              -- 'Light' | 'Medium' | 'Full'
+  preferred_brands jsonb,     -- e.g. ["NARS","Rare Beauty"] — soft highlight only
   selected_tone_id text,
   updated_at timestamptz not null default now()
 );
+-- Safe migration for databases created before preferred_brands existed.
+alter table public.preferences
+  add column if not exists preferred_brands jsonb;
 
 -- 4) SAVED PRODUCTS ---------------------------------------------------------
 -- Many rows per user. Composite key (profile + brand + name).
