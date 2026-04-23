@@ -2379,13 +2379,16 @@ function measureFrameQuality(video, minX, minY, maxX, maxY) {
   const rightMean = rightSum / Math.max(1, rightN);
   const sideDelta = Math.abs(leftMean - rightMean);
   const brightSideMean = Math.max(leftMean, rightMean);
-  const sideLit   = sideDelta >= 35;        // ~14% luma delta = noticeable cross-face bias
+  const dimSideMean    = Math.min(leftMean, rightMean);
+  const sideLit   = sideDelta >= 20;        // ~8% luma delta = noticeable cross-face bias
 
-  // Under side lighting we treat the brighter half as "effective brightness",
-  // so a well-lit cheek doesn't get rejected just because the other side is
-  // in shadow. Under even lighting we just use the average.
+  // Under side lighting we weight the brighter half heavily as "effective
+  // brightness", so a well-lit cheek doesn't get rejected just because the
+  // other side is in shadow. Stronger asymmetry ⇒ trust the bright side more.
+  const sideWeight = Math.min(1, sideDelta / 60);   // 0..1 ramp
   const effectiveBrightness = sideLit
-    ? (0.65 * brightSideMean + 0.35 * brightness)
+    ? ((0.55 + 0.35 * sideWeight) * brightSideMean +
+       (0.45 - 0.35 * sideWeight) * brightness)
     : brightness;
 
   // Laplacian 3x3 → std-dev of response.
@@ -2686,11 +2689,14 @@ function Scanner({ scanState, onScan, tone, results }) {
       const yawOK  = Math.abs(yawDeg)  < YAW_LOCK_DEG;
       const pitchOK = Math.abs(pitchDeg) < PITCH_LOCK_DEG;
       // Auto-adapt for side-lit scenes: measure the bright half only for
-      // brightness, and relax the sharpness floor since one half has no
-      // visible texture. These still reject truly unusable frames.
+      // brightness, relax both the brightness window AND the sharpness floor
+      // since one half has no visible texture and can be dark or blown out.
+      // These still reject truly unusable frames.
       const brightProbe = q.sideLit ? q.effectiveBrightness : q.brightness;
-      const sharpFloor  = q.sideLit ? Math.max(3.5, MIN_SHARPNESS - 2.5) : MIN_SHARPNESS;
-      const brightOK = brightProbe >= MIN_BRIGHTNESS && brightProbe <= MAX_BRIGHTNESS;
+      const brightMin   = q.sideLit ? 70  : MIN_BRIGHTNESS;   // 90 → 70
+      const brightMax   = q.sideLit ? 245 : MAX_BRIGHTNESS;   // 225 → 245
+      const sharpFloor  = q.sideLit ? 2.5 : MIN_SHARPNESS;    // 6 → 2.5
+      const brightOK = brightProbe >= brightMin && brightProbe <= brightMax;
       const sharpOK  = q.sharpness  >= sharpFloor;
       const poseOK = yawOK && pitchOK && centered && coverage >= 0.62;
       const qualityOK = poseOK && brightOK && sharpOK;
@@ -2895,10 +2901,12 @@ function Scanner({ scanState, onScan, tone, results }) {
   const brightProbe = hud.sideLit && hud.effectiveBrightness
     ? hud.effectiveBrightness
     : hud.brightness;
-  const sharpFloorUI = hud.sideLit ? Math.max(3.5, MIN_SHARPNESS - 2.5) : MIN_SHARPNESS;
+  const brightMinUI  = hud.sideLit ? 70  : MIN_BRIGHTNESS;
+  const brightMaxUI  = hud.sideLit ? 245 : MAX_BRIGHTNESS;
+  const sharpFloorUI = hud.sideLit ? 2.5 : MIN_SHARPNESS;
   const metricOK = {
     yaw:   Math.abs(hud.yawDeg) < YAW_LOCK_DEG,
-    bright: brightProbe >= MIN_BRIGHTNESS && brightProbe <= MAX_BRIGHTNESS,
+    bright: brightProbe >= brightMinUI && brightProbe <= brightMaxUI,
     sharp:  hud.sharpness  >= sharpFloorUI,
     cover:  hud.coverage   >= 70,
   };
