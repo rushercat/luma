@@ -1230,6 +1230,70 @@ a:hover { opacity: 0.7; }
   }
   .profile-history-meta{flex:1;color:rgba(255,255,255,.85)}
   .profile-history-meta b{font-weight:500;color:#fff}
+  /* Saved Products — expandable card */
+  .profile-card-saved{ cursor:default; }
+  .profile-saved-toggle{
+    width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;
+    background:none;border:0;padding:0;margin:0;cursor:pointer;
+    color:inherit;text-align:left;
+  }
+  .profile-saved-toggle:hover h3{ color:#fff }
+  .profile-saved-count{
+    display:inline-flex;align-items:center;gap:8px;
+    background:rgba(255,201,168,.15);
+    border:1px solid rgba(255,201,168,.25);
+    color:var(--peach);
+    font-family:var(--font-body);
+    font-size:11px;letter-spacing:.12em;
+    padding:4px 10px;border-radius:999px;
+    min-width:40px;justify-content:center;
+  }
+  .profile-saved-caret{
+    font-size:10px;line-height:1;transition:transform .2s;opacity:.85;
+  }
+  .profile-saved-caret.open{ transform:rotate(180deg); }
+  .profile-saved-list{
+    margin-top:14px;display:flex;flex-direction:column;gap:8px;
+    animation:savedExpand .25s ease-out;
+  }
+  @keyframes savedExpand{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
+  .profile-saved-row{
+    display:flex;align-items:center;gap:12px;
+    background:rgba(255,255,255,.03);
+    border:1px solid rgba(255,255,255,.06);
+    border-radius:12px;padding:10px 12px;
+  }
+  .profile-saved-dot{
+    width:26px;height:26px;border-radius:50%;flex-shrink:0;
+    box-shadow:inset 0 0 0 1px rgba(0,0,0,.2), 0 0 0 1px rgba(255,255,255,.18);
+  }
+  .profile-saved-meta{ flex:1;min-width:0; }
+  .profile-saved-brand{
+    font-size:10px;letter-spacing:.18em;text-transform:uppercase;
+    color:rgba(255,255,255,.55);margin-bottom:2px;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .profile-saved-name{
+    font-size:13px;color:#fff;font-weight:500;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .profile-saved-sub{
+    font-size:11px;color:rgba(255,255,255,.5);margin-top:2px;
+  }
+  .profile-saved-remove{
+    width:28px;height:28px;border-radius:50%;
+    background:rgba(255,255,255,.04);
+    border:1px solid rgba(255,255,255,.1);
+    color:rgba(255,255,255,.6);font-size:14px;line-height:1;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;flex-shrink:0;
+    transition:background .15s, color .15s, border-color .15s;
+  }
+  .profile-saved-remove:hover{
+    background:rgba(248,168,156,.12);
+    border-color:rgba(248,168,156,.4);
+    color:#f8a89c;
+  }
+
   .profile-danger{
     margin-top:28px;
     background:rgba(248,168,156,.04);
@@ -3569,12 +3633,23 @@ function ProfileView({ user, onSignOut, onBack, onAccountDeleted }){
   const [latest, setLatest] = useState(null);
   const [history, setHistory] = useState([]);
   const [prefs, setPrefs] = useState(null);
-  const [savedCount, setSavedCount] = useState(0);
+  const [savedList, setSavedList] = useState([]);
+  const [savedOpen, setSavedOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmText, setConfirmText] = useState('');
   const [deleting, setDeleting] = useState(false);
   const [delErr, setDelErr] = useState('');
+
+  // Build a quick lookup over the product catalog so we can render a
+  // swatch dot + category for each saved row.
+  const productIndex = React.useMemo(() => {
+    const idx = {};
+    (window.LUMA_PRODUCTS || []).forEach(p => {
+      idx[(p.brand||'') + '|' + (p.name||'')] = p;
+    });
+    return idx;
+  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -3591,7 +3666,7 @@ function ProfileView({ user, onSignOut, onBack, onAccountDeleted }){
       setHistory(scans || []);
       setLatest((scans && scans[0]) || null);
       setPrefs(p || null);
-      setSavedCount((saved || []).length);
+      setSavedList(saved || []);
       setLoading(false);
     })();
     return () => { alive = false; };
@@ -3684,16 +3759,57 @@ function ProfileView({ user, onSignOut, onBack, onAccountDeleted }){
           }
         </div>
 
-        {/* Saved products */}
-        <div className="profile-card">
-          <h3>Saved Products</h3>
-          <div className="profile-kv">
-            <span className="profile-kv-k">Total saved</span>
-            <span className="profile-kv-v">{loading ? '…' : savedCount}</span>
-          </div>
-          {!loading && savedCount === 0 && (
+        {/* Saved products (click to expand) */}
+        <div className={'profile-card profile-card-saved' + (savedOpen ? ' open' : '')}>
+          <button
+            type="button"
+            className="profile-saved-toggle"
+            aria-expanded={savedOpen}
+            onClick={() => setSavedOpen(o => !o)}>
+            <h3 style={{margin:0}}>Saved Products</h3>
+            <span className="profile-saved-count">
+              {loading ? '…' : savedList.length}
+              <span className={'profile-saved-caret' + (savedOpen ? ' open' : '')} aria-hidden="true">▾</span>
+            </span>
+          </button>
+
+          {!loading && savedList.length === 0 && (
             <div className="profile-empty" style={{marginTop:8}}>
               Tap the heart on any product to save it here.
+            </div>
+          )}
+
+          {savedOpen && !loading && savedList.length > 0 && (
+            <div className="profile-saved-list">
+              {savedList.map(row => {
+                const p = productIndex[row.brand + '|' + row.name];
+                const swatch = p && p.swatches && p.swatches[0];
+                return (
+                  <div key={row.brand + '|' + row.name} className="profile-saved-row">
+                    <span className="profile-saved-dot" style={{background: swatch || 'rgba(255,255,255,.15)'}} />
+                    <div className="profile-saved-meta">
+                      <div className="profile-saved-brand">{row.brand}</div>
+                      <div className="profile-saved-name">{row.name}</div>
+                      <div className="profile-saved-sub">
+                        {p && p.cat ? p.cat + ' · ' : ''}
+                        {p && typeof p.price === 'number' ? '$' + p.price + ' · ' : ''}
+                        Saved {fmtDate(row.saved_at)}
+                      </div>
+                    </div>
+                    <button
+                      className="profile-saved-remove"
+                      aria-label={'Remove ' + row.name}
+                      title="Remove"
+                      onClick={async () => {
+                        setSavedList(list => list.filter(r => !(r.brand===row.brand && r.name===row.name)));
+                        try { await window.LumaAuth.removeSavedProduct(row.brand, row.name); }
+                        catch(e) { console.warn('[LUMA] unsave failed', e); }
+                      }}>
+                      ×
+                    </button>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
