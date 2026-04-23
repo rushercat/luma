@@ -1695,6 +1695,18 @@ window.LUMA_PREFS = [
     return { error };
   }
 
+  // Permanently delete the signed-in user's account + all their data.
+  // Uses the `public.delete_my_account()` RPC (SECURITY DEFINER, self-only).
+  async function deleteMyAccount(){
+    const c = getClient(); const u = await getUser();
+    if (!c || !u) return { error: { message: 'Not signed in.' } };
+    const { error } = await c.rpc('delete_my_account');
+    if (error) return { error };
+    // The JWT now points to a non-existent user; drop the local session.
+    try { await c.auth.signOut(); } catch(_) {}
+    return { error: null };
+  }
+
   // ---- 5. EXPORT ----------------------------------------------------------
   window.LumaAuth = {
     isConfigured, getClient,
@@ -1703,6 +1715,7 @@ window.LUMA_PREFS = [
     insertScan, listScans, latestScan,
     getPreferences, upsertPreferences,
     listSavedProducts, addSavedProduct, removeSavedProduct,
+    deleteMyAccount,
     consumeAuthHash,
     // utils (exposed for UI validation)
     validEmail, validPin, normEmail,
@@ -3552,12 +3565,16 @@ function initialOf(email){
   return c ? c.toUpperCase() : '?';
 }
 
-function ProfileView({ user, onSignOut, onBack }){
+function ProfileView({ user, onSignOut, onBack, onAccountDeleted }){
   const [latest, setLatest] = useState(null);
   const [history, setHistory] = useState([]);
   const [prefs, setPrefs] = useState(null);
   const [savedCount, setSavedCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmText, setConfirmText] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  const [delErr, setDelErr] = useState('');
 
   useEffect(() => {
     let alive = true;
@@ -3705,13 +3722,78 @@ function ProfileView({ user, onSignOut, onBack }){
         )
       }
 
-      <div className="profile-danger">
-        <h3>Privacy</h3>
+      <div className="profile-danger" style={{borderColor:'rgba(255,255,255,.1)',background:'rgba(255,255,255,.02)'}}>
+        <h3 style={{color:'rgba(255,255,255,.7)'}}>Privacy</h3>
         <p>
           LUMA never stores face images, landmarks, or any biometric data — cloud or local.
           Only the derived metrics shown above are saved to your profile.
         </p>
       </div>
+
+      <div className="profile-danger">
+        <h3>Delete account</h3>
+        <p>
+          Permanently remove your account and everything linked to it — scan history,
+          preferences, and saved products. This cannot be undone.
+        </p>
+        <button onClick={()=>{ setDelErr(''); setConfirmText(''); setConfirmOpen(true); }}>
+          Delete my account
+        </button>
+      </div>
+
+      {confirmOpen && (
+        <div className="auth-backdrop" onClick={(e)=>{ if(e.target===e.currentTarget && !deleting) setConfirmOpen(false); }}>
+          <div className="auth-card" role="dialog" aria-modal="true" aria-label="Delete account">
+            {!deleting && (
+              <button className="auth-close" aria-label="Close" onClick={()=>setConfirmOpen(false)}>×</button>
+            )}
+            <div className="auth-brand" style={{color:'#f8a89c'}}>Delete account</div>
+            <div className="auth-subtitle" style={{color:'rgba(248,168,156,.75)'}}>This cannot be undone</div>
+            <p style={{fontSize:13,lineHeight:1.6,color:'rgba(255,255,255,.8)',margin:'0 0 18px'}}>
+              We'll permanently delete your account, scan history, preferences and saved products.
+              To confirm, type <b style={{color:'#fff'}}>DELETE</b> below.
+            </p>
+            {delErr && <div className="auth-error">{delErr}</div>}
+            <div className="auth-field">
+              <input
+                className="auth-input"
+                type="text" autoComplete="off" autoCapitalize="characters"
+                placeholder="Type DELETE to confirm"
+                value={confirmText}
+                onChange={(e)=>setConfirmText(e.target.value)}
+                disabled={deleting}
+              />
+            </div>
+            <button
+              className="auth-submit"
+              style={{background:'linear-gradient(135deg,#e88a7a,#c86860)',color:'#fff'}}
+              disabled={deleting || confirmText.trim().toUpperCase() !== 'DELETE'}
+              onClick={async ()=>{
+                setDeleting(true); setDelErr('');
+                try {
+                  const { error } = await window.LumaAuth.deleteMyAccount();
+                  if (error) {
+                    setDelErr(error.message || 'Could not delete the account. Please try again.');
+                    setDeleting(false);
+                    return;
+                  }
+                  setConfirmOpen(false);
+                  onAccountDeleted && onAccountDeleted();
+                } catch(x){
+                  setDelErr((x && x.message) || 'Unexpected error.');
+                  setDeleting(false);
+                }
+              }}>
+              {deleting ? 'Deleting…' : 'Yes, delete my account'}
+            </button>
+            {!deleting && (
+              <div style={{textAlign:'center',marginTop:14}}>
+                <button className="profile-signout" onClick={()=>setConfirmOpen(false)}>Cancel</button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       <div style={{textAlign:'center',marginTop:30}}>
         <button className="profile-signout" onClick={onBack}>← Back to scanner</button>
@@ -3974,6 +4056,16 @@ function App() {
           user={user}
           onSignOut={signOut}
           onBack={() => setRoute('home')}
+          onAccountDeleted={() => {
+            setUser(null);
+            setRoute('home');
+            setSaved(new Set());
+            setPrefs([]); setConcerns([]); setCoverage(''); setBudget(300);
+            lastPrefsSigRef.current = '';
+            lastSavedSigRef.current = '';
+            setToast({ kind:'success', title:'Account deleted',
+              body:'Your account and all associated data have been permanently removed.' });
+          }}
         />
       ) : (
         <div className="app">

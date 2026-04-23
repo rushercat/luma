@@ -165,6 +165,32 @@ create trigger preferences_touch
   for each row execute procedure public.touch_updated_at();
 
 -- ============================================================================
+-- Self-service account deletion.
+-- A signed-in user can fully delete their own account (auth row + all data,
+-- cascaded via our foreign keys). The function runs as "security definer",
+-- but enforces `id = auth.uid()` so a user can only delete themselves.
+-- ============================================================================
+create or replace function public.delete_my_account()
+returns void
+language plpgsql
+security definer
+set search_path = public, auth
+as $$
+begin
+  if auth.uid() is null then
+    raise exception 'not authenticated';
+  end if;
+  -- Cascade kicks in via profiles.id → auth.users(id) ON DELETE CASCADE,
+  -- which in turn cascades into scans / preferences / saved_products.
+  delete from auth.users where id = auth.uid();
+end;
+$$;
+
+-- Only logged-in users can call this.
+revoke all on function public.delete_my_account() from public;
+grant execute on function public.delete_my_account() to authenticated;
+
+-- ============================================================================
 -- Done. Next steps:
 --   1. Supabase Dashboard → Authentication → Providers → Email
 --      • Leave "Email" enabled.
