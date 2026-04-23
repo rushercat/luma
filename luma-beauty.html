@@ -1,0 +1,1963 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LUMA — AI Beauty Scanner</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0c0a09;
+  --bg2: #141210;
+  --surface: #1c1814;
+  --surface2: #242018;
+  --border: rgba(201,169,110,0.18);
+  --gold: #c9a96e;
+  --gold-light: #e8c98a;
+  --gold-dim: rgba(201,169,110,0.12);
+  --text: #f0ebe4;
+  --text-muted: #a09590;
+  --text-dim: #726660;
+  --accent: #d4896a;
+  --green: #6fb08a;
+  --transition: cubic-bezier(0.4,0,0.2,1);
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:'DM Sans',sans-serif;
+  font-weight:300;
+  min-height:100vh;
+  overflow-x:hidden;
+  cursor:none;
+}
+body::before{
+  content:'';position:fixed;inset:0;z-index:0;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+  pointer-events:none;opacity:0.5;
+}
+
+/* CURSOR */
+*{cursor:none !important;}
+.cursor{position:fixed;top:0;left:0;z-index:9999;pointer-events:none;}
+.cursor-dot{width:6px;height:6px;background:var(--gold);border-radius:50%;position:absolute;transform:translate(-50%,-50%);transition:none;}
+.cursor-ring{width:26px;height:26px;border:1.5px solid rgba(201,169,110,0.6);border-radius:50%;position:absolute;transform:translate(-50%,-50%);transition:width 0.15s,height 0.15s,border-color 0.15s;}
+
+/* NAV */
+nav{
+  position:fixed;top:0;left:0;right:0;z-index:200;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:22px 48px;
+  background:rgba(12,10,9,0.92);
+  backdrop-filter:blur(20px);
+  border-bottom:1px solid var(--border);
+}
+.nav-logo{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:300;letter-spacing:0.3em;color:var(--text);text-decoration:none;}
+.nav-logo span{color:var(--gold);}
+.nav-right{display:flex;align-items:center;gap:32px;}
+.nav-links{display:flex;gap:32px;list-style:none;}
+.nav-links a{text-decoration:none;color:var(--text-muted);font-size:12px;letter-spacing:0.12em;text-transform:uppercase;transition:color 0.3s;font-weight:400;}
+.nav-links a:hover{color:var(--gold);}
+.nav-badge{background:var(--gold);color:var(--bg);padding:2px 10px;font-size:9px;letter-spacing:0.2em;text-transform:uppercase;font-weight:500;border-radius:20px;}
+
+/* MAIN LAYOUT */
+.app{
+  display:grid;
+  grid-template-columns:400px 1fr;
+  min-height:100vh;
+  padding-top:69px;
+  position:relative;z-index:1;
+}
+
+/* ===== LEFT PANEL ===== */
+.left-panel{
+  background:var(--bg2);
+  border-right:1px solid var(--border);
+  height:calc(100vh - 69px);
+  position:sticky;
+  top:69px;
+  overflow-y:auto;
+  scrollbar-width:thin;
+  scrollbar-color:var(--border) transparent;
+}
+.left-panel::-webkit-scrollbar{width:3px;}
+.left-panel::-webkit-scrollbar-thumb{background:var(--border);}
+
+/* SCAN SECTION */
+.scan-area{
+  padding:32px 32px 24px;
+  border-bottom:1px solid var(--border);
+}
+.scan-label{
+  font-size:9px;letter-spacing:0.3em;text-transform:uppercase;color:var(--gold);
+  margin-bottom:16px;display:flex;align-items:center;gap:10px;
+}
+.scan-label::before{content:'';width:24px;height:1px;background:var(--gold);}
+.scan-label span.dot{width:6px;height:6px;border-radius:50%;background:var(--green);display:inline-block;animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(111,176,138,0.4);}50%{box-shadow:0 0 0 6px transparent;}}
+
+.scan-viewport{
+  width:100%;aspect-ratio:3/4;
+  background:var(--surface);
+  border:1px solid var(--border);
+  position:relative;
+  overflow:hidden;
+  border-radius:2px;
+}
+
+/* The fake camera feed — gradient mesh face */
+.scan-face-wrap{
+  position:absolute;inset:0;
+  display:flex;align-items:center;justify-content:center;
+}
+.scan-face-svg{width:70%;height:auto;filter:drop-shadow(0 8px 32px rgba(201,169,110,0.08));}
+
+/* scan lines */
+.scan-overlay{
+  position:absolute;inset:0;pointer-events:none;
+}
+.scan-line{
+  position:absolute;left:0;right:0;height:2px;
+  background:linear-gradient(to right,transparent,rgba(201,169,110,0.5),transparent);
+  animation:scanLine 3s ease-in-out infinite;
+  opacity:0;
+}
+@keyframes scanLine{
+  0%{top:0%;opacity:0;}
+  10%{opacity:1;}
+  90%{opacity:1;}
+  100%{top:100%;opacity:0;}
+}
+.scan-corner{position:absolute;width:18px;height:18px;}
+.scan-corner-tl{top:12px;left:12px;border-top:1.5px solid var(--gold);border-left:1.5px solid var(--gold);}
+.scan-corner-tr{top:12px;right:12px;border-top:1.5px solid var(--gold);border-right:1.5px solid var(--gold);}
+.scan-corner-bl{bottom:12px;left:12px;border-bottom:1.5px solid var(--gold);border-left:1.5px solid var(--gold);}
+.scan-corner-br{bottom:12px;right:12px;border-bottom:1.5px solid var(--gold);border-right:1.5px solid var(--gold);}
+
+/* Dot grid overlay */
+.scan-dots{
+  position:absolute;inset:0;
+  background-image:radial-gradient(circle,rgba(201,169,110,0.08) 1px,transparent 1px);
+  background-size:20px 20px;
+}
+
+/* Mesh wireframe overlay on face */
+.mesh-overlay{
+  position:absolute;inset:0;pointer-events:none;
+  opacity:0;transition:opacity 0.6s;
+}
+.mesh-overlay.visible{opacity:1;}
+
+/* Scan status */
+.scan-status{
+  position:absolute;bottom:12px;left:50%;transform:translateX(-50%);
+  font-size:9px;letter-spacing:0.2em;text-transform:uppercase;
+  color:var(--gold);white-space:nowrap;
+  background:rgba(12,10,9,0.8);padding:4px 12px;border:1px solid var(--border);
+}
+
+/* Analysis boxes */
+.analysis-grid{
+  display:grid;grid-template-columns:1fr 1fr;gap:8px;
+  margin-top:12px;
+}
+.analysis-chip{
+  background:var(--surface);border:1px solid var(--border);
+  padding:10px 12px;
+  position:relative;overflow:hidden;
+}
+.analysis-chip::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:1px;
+  background:linear-gradient(to right,transparent,var(--gold),transparent);
+  opacity:0.4;
+}
+.chip-label{font-size:10px;letter-spacing:0.15em;text-transform:uppercase;color:var(--text-muted);margin-bottom:5px;}
+.chip-value{font-size:14px;font-weight:400;color:var(--text);}
+.chip-sub{font-size:11px;color:var(--text-muted);margin-top:3px;}
+
+/* Tone Row */
+.tone-row-wrap{
+  padding:22px 32px;
+  border-bottom:1px solid var(--border);
+}
+.section-label{font-size:9px;letter-spacing:0.3em;text-transform:uppercase;color:var(--gold);margin-bottom:14px;display:flex;align-items:center;gap:10px;}
+.section-label::before{content:'';width:20px;height:1px;background:var(--gold);}
+.tone-group-label{font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-muted);margin:12px 0 8px;font-weight:400;}
+.tone-row{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:4px;}
+.tone-swatch{
+  width:32px;height:32px;border-radius:50%;cursor:none;
+  border:2px solid transparent;
+  transition:transform 0.2s,border-color 0.2s;
+  position:relative;
+  box-shadow:0 2px 6px rgba(0,0,0,0.4);
+}
+.tone-swatch:hover{transform:scale(1.15);}
+.tone-swatch.active{border-color:var(--gold);}
+.tone-swatch.active::after{
+  content:'';position:absolute;inset:-4px;border-radius:50%;
+  border:1px solid rgba(201,169,110,0.3);
+}
+.selected-tone-info{
+  display:flex;align-items:center;gap:12px;margin-top:16px;
+  padding:12px;background:var(--surface);border:1px solid var(--border);
+}
+.selected-dot{width:36px;height:36px;border-radius:50%;flex-shrink:0;}
+.selected-text .name{font-size:15px;font-weight:400;}
+.selected-text .sub{font-size:12px;color:var(--text-muted);margin-top:3px;}
+
+/* ===== FILTERS ===== */
+.filters-wrap{
+  padding:22px 32px;
+  border-bottom:1px solid var(--border);
+}
+.filter-group{margin-bottom:22px;}
+.filter-group:last-child{margin-bottom:0;}
+.filter-title{font-size:12px;letter-spacing:0.08em;color:var(--text);margin-bottom:12px;font-weight:300;}
+
+/* Budget slider */
+.slider-wrap{position:relative;}
+.budget-labels{display:flex;justify-content:space-between;font-size:10px;color:var(--text-muted);margin-bottom:8px;}
+input[type=range]{
+  -webkit-appearance:none;width:100%;height:2px;
+  background:linear-gradient(to right,var(--gold) 0%,var(--gold) var(--val,40%),var(--surface2) var(--val,40%),var(--surface2) 100%);
+  outline:none;cursor:none;
+  border-radius:1px;
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:16px;height:16px;border-radius:50%;
+  background:var(--gold);border:2px solid var(--bg);
+  box-shadow:0 0 0 2px rgba(201,169,110,0.3);
+  cursor:none;
+}
+.budget-value{
+  font-size:11px;color:var(--gold);text-align:right;margin-top:6px;
+}
+
+/* Toggle filters */
+.toggle-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.toggle-item{
+  display:flex;align-items:center;gap:10px;
+  padding:9px 12px;
+  background:var(--surface);border:1px solid var(--border);
+  cursor:none;transition:all 0.2s;
+  user-select:none;
+}
+.toggle-item.active{border-color:var(--gold);background:var(--gold-dim);}
+.toggle-item:hover{border-color:rgba(201,169,110,0.3);}
+.toggle-dot{
+  width:14px;height:14px;border-radius:50%;border:1px solid var(--border);
+  flex-shrink:0;transition:all 0.2s;
+  display:flex;align-items:center;justify-content:center;
+}
+.toggle-item.active .toggle-dot{background:var(--gold);border-color:var(--gold);}
+.toggle-dot::after{content:'';width:5px;height:5px;border-radius:50%;background:var(--bg);opacity:0;transition:opacity 0.2s;}
+.toggle-item.active .toggle-dot::after{opacity:1;}
+.toggle-label{font-size:12px;letter-spacing:0.02em;color:var(--text);}
+
+/* Skin concern tags */
+.tag-row{display:flex;flex-wrap:wrap;gap:6px;}
+.concern-tag{
+  padding:6px 14px;border:1px solid var(--border);
+  font-size:11px;letter-spacing:0.08em;text-transform:uppercase;
+  cursor:none;transition:all 0.2s;background:transparent;color:var(--text-muted);
+}
+.concern-tag.active{border-color:var(--gold);color:var(--gold);background:var(--gold-dim);}
+.concern-tag:hover{border-color:rgba(201,169,110,0.3);}
+
+/* Scan button */
+.scan-btn{
+  width:100%;padding:14px;background:var(--gold);color:var(--bg);
+  border:none;cursor:none;font-family:'DM Sans',sans-serif;
+  font-size:11px;letter-spacing:0.25em;text-transform:uppercase;font-weight:500;
+  transition:all 0.3s;position:relative;overflow:hidden;margin-top:24px;
+}
+.scan-btn::after{
+  content:'';position:absolute;inset:0;
+  background:rgba(255,255,255,0.15);transform:translateX(-100%);
+  transition:transform 0.4s var(--transition);
+}
+.scan-btn:hover::after{transform:translateX(0);}
+.scan-btn.scanning{background:var(--surface);border:1px solid var(--gold);color:var(--gold);}
+
+/* ===== RIGHT PANEL ===== */
+.right-panel{
+  background:var(--bg);
+  padding:0;
+}
+
+/* Marketplace header */
+.marketplace-header{
+  padding:28px 40px 0;
+  border-bottom:1px solid var(--border);
+  position:sticky;top:69px;z-index:100;
+  background:rgba(12,10,9,0.95);
+  backdrop-filter:blur(20px);
+}
+.mh-top{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:20px;}
+.mh-title{
+  font-family:'Cormorant Garamond',serif;
+  font-size:32px;font-weight:300;line-height:1;
+}
+.mh-title em{font-style:italic;color:var(--gold);}
+.mh-count{font-size:11px;color:var(--text-muted);margin-bottom:2px;}
+.mh-subtitle{font-size:12px;color:var(--text-muted);}
+
+/* Category tabs */
+.category-tabs{display:flex;gap:0;overflow-x:auto;scrollbar-width:none;}
+.category-tabs::-webkit-scrollbar{display:none;}
+.cat-tab{
+  padding:14px 22px;border:none;background:transparent;
+  color:var(--text-muted);cursor:none;
+  font-family:'DM Sans',sans-serif;font-size:11px;letter-spacing:0.14em;text-transform:uppercase;
+  border-bottom:2px solid transparent;transition:all 0.25s;white-space:nowrap;font-weight:400;
+}
+.cat-tab.active{color:var(--gold);border-bottom-color:var(--gold);}
+.cat-tab:hover:not(.active){color:var(--text);}
+
+/* Sort bar */
+.sort-bar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:16px 40px;
+  border-bottom:1px solid var(--border);
+}
+.sort-left{display:flex;align-items:center;gap:12px;}
+.sort-label{font-size:10px;letter-spacing:0.15em;text-transform:uppercase;color:var(--text-muted);}
+.sort-btn{
+  padding:5px 14px;border:1px solid var(--border);background:transparent;
+  font-size:10px;letter-spacing:0.12em;text-transform:uppercase;
+  color:var(--text-muted);cursor:none;transition:all 0.2s;
+}
+.sort-btn.active{border-color:var(--gold);color:var(--gold);background:var(--gold-dim);}
+.filter-count{
+  font-size:11px;color:var(--text-muted);
+}
+.filter-count span{color:var(--gold);}
+
+/* Products grid */
+.products-grid{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));
+  gap:1px;
+  background:var(--border);
+  border-top:1px solid var(--border);
+}
+
+/* Product card */
+.product-card{
+  background:var(--bg);
+  padding:28px;
+  transition:background 0.2s;
+  cursor:none;
+  position:relative;
+  animation:fadeUp 0.4s var(--transition) both;
+}
+.product-card:hover{background:var(--bg2);}
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px);}to{opacity:1;transform:translateY(0);}}
+
+.match-badge{
+  position:absolute;top:18px;right:18px;
+  background:var(--gold);color:var(--bg);
+  font-size:9px;letter-spacing:0.18em;text-transform:uppercase;
+  padding:4px 11px;font-weight:500;
+}
+.card-brand{font-size:10px;letter-spacing:0.2em;text-transform:uppercase;color:var(--text-muted);margin-bottom:8px;}
+.card-category{
+  display:inline-block;font-size:9px;letter-spacing:0.13em;text-transform:uppercase;
+  color:var(--text-muted);border:1px solid var(--border);padding:3px 9px;margin-bottom:14px;
+}
+.card-name{font-family:'Cormorant Garamond',serif;font-size:21px;font-weight:400;line-height:1.1;margin-bottom:8px;}
+.card-desc{font-size:12px;color:var(--text-muted);line-height:1.65;margin-bottom:16px;}
+.card-swatches{display:flex;gap:6px;margin-bottom:16px;align-items:center;}
+.swatch-dot{width:18px;height:18px;border-radius:50%;border:1px solid rgba(255,255,255,0.06);}
+.swatch-more{font-size:10px;color:var(--text-muted);letter-spacing:0.05em;}
+.card-tags{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:16px;}
+.card-tag{
+  font-size:9px;letter-spacing:0.1em;text-transform:uppercase;
+  padding:3px 9px;border:1px solid var(--border);color:var(--text-muted);
+}
+.card-tag.green{border-color:rgba(111,176,138,0.3);color:var(--green);}
+.card-footer{display:flex;align-items:center;justify-content:space-between;margin-top:auto;padding-top:16px;border-top:1px solid var(--border);}
+.card-price{font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:300;}
+.card-price span{font-size:12px;color:var(--text-muted);font-family:'DM Sans',sans-serif;margin-left:2px;}
+.card-actions{display:flex;gap:8px;}
+.btn-shop{
+  padding:8px 18px;background:var(--gold);color:var(--bg);
+  border:none;cursor:none;font-family:'DM Sans',sans-serif;
+  font-size:9px;letter-spacing:0.2em;text-transform:uppercase;font-weight:500;
+  transition:all 0.2s;text-decoration:none;display:inline-flex;align-items:center;
+}
+.btn-shop:hover{background:var(--gold-light);}
+.btn-save{
+  width:36px;height:36px;border:1px solid var(--border);background:transparent;
+  cursor:none;display:flex;align-items:center;justify-content:center;
+  font-size:14px;color:var(--text-muted);transition:all 0.2s;
+}
+.btn-save:hover,.btn-save.saved{border-color:var(--gold);color:var(--gold);}
+
+/* Matching indicator */
+.match-bar{height:2px;background:var(--border);margin-bottom:14px;position:relative;}
+.match-fill{height:100%;background:var(--gold);transition:width 0.8s var(--transition);}
+.match-label{font-size:10px;color:var(--text-muted);letter-spacing:0.08em;margin-bottom:6px;}
+
+/* Product image placeholder */
+.card-img{
+  width:100%;height:160px;
+  position:relative;overflow:hidden;
+  margin-bottom:18px;
+  background:var(--surface);
+  border:1px solid var(--border);
+  display:flex;align-items:center;justify-content:center;
+}
+.card-img svg{width:100%;height:100%;}
+.card-img-overlay{
+  position:absolute;inset:0;
+  background:linear-gradient(to bottom, transparent 50%, rgba(12,10,9,0.6) 100%);
+}
+
+/* empty state */
+.empty-state{
+  grid-column:1/-1;padding:80px 40px;text-align:center;
+}
+.empty-state .e-icon{font-size:36px;margin-bottom:16px;opacity:0.4;}
+.empty-state .e-text{font-size:14px;color:var(--text-muted);}
+
+/* scan progress modal */
+.scan-modal{
+  position:fixed;inset:0;z-index:300;
+  background:rgba(12,10,9,0.92);
+  display:flex;align-items:center;justify-content:center;
+  opacity:0;pointer-events:none;transition:opacity 0.3s;
+}
+.scan-modal.open{opacity:1;pointer-events:all;}
+.scan-modal-inner{
+  padding:48px;text-align:center;
+  border:1px solid var(--border);background:var(--bg2);
+  max-width:360px;width:90%;
+}
+.scan-progress-ring{
+  width:80px;height:80px;margin:0 auto 24px;position:relative;
+}
+.scan-progress-ring svg{width:100%;height:100%;}
+.ring-bg{fill:none;stroke:var(--surface2);stroke-width:2;}
+.ring-fill{fill:none;stroke:var(--gold);stroke-width:2;stroke-linecap:round;
+  stroke-dasharray:220;stroke-dashoffset:220;
+  transform:rotate(-90deg);transform-origin:50% 50%;
+  transition:stroke-dashoffset 0.1s linear;
+}
+.scan-modal-title{font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:300;margin-bottom:8px;}
+.scan-modal-sub{font-size:11px;color:var(--text-muted);letter-spacing:0.05em;}
+.scan-steps{margin-top:24px;text-align:left;}
+.scan-step{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);font-size:11px;color:var(--text-muted);}
+.scan-step:last-child{border-bottom:none;}
+.step-icon{width:18px;height:18px;border-radius:50%;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:9px;flex-shrink:0;}
+.step-icon.done{background:var(--gold);border-color:var(--gold);color:var(--bg);}
+.step-icon.active{border-color:var(--gold);color:var(--gold);}
+
+/* Camera video */
+.scan-video{
+  position:absolute;inset:0;width:100%;height:100%;
+  object-fit:cover;z-index:1;
+  transform:scaleX(-1); /* mirror front camera */
+}
+.scan-face-wrap{z-index:0;}
+.scan-dots{z-index:0;}
+.scan-overlay{z-index:3;}
+.mesh-overlay{z-index:2;}
+.scan-status{z-index:4;}
+
+/* Camera denied notice */
+.cam-denied{
+  position:absolute;inset:0;z-index:5;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  background:rgba(12,10,9,0.85);gap:10px;text-align:center;padding:20px;
+}
+.cam-denied-icon{font-size:28px;opacity:0.5;}
+.cam-denied-text{font-size:11px;color:var(--text-muted);line-height:1.6;letter-spacing:0.04em;}
+.cam-denied-text strong{color:var(--text);display:block;margin-bottom:4px;font-weight:400;font-size:13px;}
+
+/* Face guide oval — shown while camera is live */
+.face-guide{
+  position:absolute;left:50%;top:38%;
+  transform:translate(-50%,-50%);
+  width:54%;height:52%;
+  border:2px dashed rgba(201,169,110,0.55);
+  border-radius:50%;
+  z-index:4;display:none;pointer-events:none;
+  transition:border-color 0.3s,box-shadow 0.3s;
+}
+.face-guide.visible{display:block;}
+.face-guide.error{
+  border-color:rgba(220,70,70,0.9);
+  box-shadow:0 0 0 5px rgba(220,70,70,0.12);
+  animation:guideFlash 0.45s ease 4;
+}
+@keyframes guideFlash{
+  0%,100%{border-color:rgba(220,70,70,0.9);}
+  50%{border-color:rgba(220,70,70,0.08);}
+}
+/* No-face error banner */
+.no-face-banner{
+  position:absolute;bottom:14px;left:50%;transform:translateX(-50%);
+  background:rgba(180,48,48,0.93);color:#fff;
+  font-size:11px;letter-spacing:0.06em;padding:7px 16px;
+  border-radius:20px;z-index:6;white-space:nowrap;
+  pointer-events:none;opacity:0;transition:opacity 0.3s;
+}
+.no-face-banner.visible{opacity:1;}
+</style>
+</head>
+<body>
+
+<!-- Custom cursor -->
+<div class="cursor" id="cursor">
+  <div class="cursor-dot"></div>
+  <div class="cursor-ring"></div>
+</div>
+
+<!-- Scan modal -->
+<div class="scan-modal" id="scanModal">
+  <div class="scan-modal-inner">
+    <div class="scan-progress-ring">
+      <svg viewBox="0 0 80 80">
+        <circle class="ring-bg" cx="40" cy="40" r="35"/>
+        <circle class="ring-fill" id="ringFill" cx="40" cy="40" r="35"/>
+      </svg>
+    </div>
+    <div class="scan-modal-title">Analysing your face</div>
+    <div class="scan-modal-sub" id="scanSubText">Detecting facial landmarks…</div>
+    <div class="scan-steps">
+      <div class="scan-step"><div class="step-icon" id="st1">1</div><span>Face &amp; landmark detection</span></div>
+      <div class="scan-step"><div class="step-icon" id="st2">2</div><span>Melanin &amp; skin zone mapping</span></div>
+      <div class="scan-step"><div class="step-icon" id="st3">3</div><span>Multi-frame tone sampling</span></div>
+      <div class="scan-step"><div class="step-icon" id="st4">4</div><span>ITA phototype &amp; undertone</span></div>
+      <div class="scan-step"><div class="step-icon" id="st5">5</div><span>Shade matching &amp; recommendations</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- Navigation -->
+<nav>
+  <a class="nav-logo" href="#">L<span>UM</span>A</a>
+  <ul class="nav-links">
+    <li><a href="#">Scanner</a></li>
+    <li><a href="#">Products</a></li>
+    <li><a href="#">Brands</a></li>
+    <li><a href="#">My Profile</a></li>
+  </ul>
+  <div class="nav-right">
+    <span class="nav-badge">AI Powered</span>
+  </div>
+</nav>
+
+<!-- Main App -->
+<div class="app">
+
+  <!-- ===== LEFT PANEL ===== -->
+  <div class="left-panel">
+
+    <!-- Scan area -->
+    <div class="scan-area">
+      <div class="scan-label">
+        <span class="dot"></span>
+        Face Scanner
+      </div>
+
+      <div class="scan-viewport" id="scanViewport">
+        <div class="scan-dots"></div>
+        <div class="face-guide" id="faceGuide"></div>
+        <div class="no-face-banner" id="noFaceBanner">No face detected — adjust position</div>
+        <div class="scan-face-wrap">
+          <!-- Face SVG illustration -->
+          <svg class="scan-face-svg" id="faceSvg" viewBox="0 0 200 280" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <radialGradient id="skinGrad" cx="50%" cy="40%" r="60%">
+                <stop offset="0%" stop-color="#f0d5bc"/>
+                <stop offset="100%" stop-color="#d4a87a"/>
+              </radialGradient>
+              <radialGradient id="shadowGrad" cx="50%" cy="70%" r="50%">
+                <stop offset="0%" stop-color="rgba(0,0,0,0.3)"/>
+                <stop offset="100%" stop-color="rgba(0,0,0,0)"/>
+              </radialGradient>
+            </defs>
+            <!-- Neck -->
+            <path d="M80 220 Q100 250 120 220 L125 265 Q100 275 75 265 Z" fill="url(#skinGrad)" opacity="0.9"/>
+            <!-- Head shape -->
+            <ellipse cx="100" cy="120" rx="72" ry="88" fill="url(#skinGrad)"/>
+            <!-- Shadow under chin -->
+            <ellipse cx="100" cy="205" rx="40" ry="8" fill="url(#shadowGrad)" opacity="0.4"/>
+            <!-- Hair -->
+            <path d="M28 110 Q30 50 100 35 Q170 50 172 110 Q160 55 100 42 Q40 55 28 110Z" fill="#2a1f15"/>
+            <path d="M28 110 Q22 80 28 65 Q35 45 50 38" stroke="#2a1f15" stroke-width="14" stroke-linecap="round" fill="none"/>
+            <path d="M172 110 Q178 80 172 65 Q165 45 150 38" stroke="#2a1f15" stroke-width="14" stroke-linecap="round" fill="none"/>
+            <!-- Ear left -->
+            <ellipse cx="28" cy="125" rx="8" ry="12" fill="url(#skinGrad)"/>
+            <!-- Ear right -->
+            <ellipse cx="172" cy="125" rx="8" ry="12" fill="url(#skinGrad)"/>
+            <!-- Eyebrow left -->
+            <path d="M55 92 Q72 85 84 88" stroke="#5a3e28" stroke-width="3" stroke-linecap="round" fill="none"/>
+            <!-- Eyebrow right -->
+            <path d="M116 88 Q128 85 145 92" stroke="#5a3e28" stroke-width="3" stroke-linecap="round" fill="none"/>
+            <!-- Eye left -->
+            <ellipse cx="69" cy="106" rx="14" ry="9" fill="white"/>
+            <ellipse cx="69" cy="107" rx="7" ry="7" fill="#6a3f28"/>
+            <ellipse cx="69" cy="107" rx="4" ry="4" fill="#1a0e08"/>
+            <ellipse cx="72" cy="104" rx="2" ry="2" fill="white"/>
+            <path d="M55 106 Q69 98 83 106" stroke="#2a1a10" stroke-width="1.5" fill="none"/>
+            <path d="M55 106 Q69 114 83 106" stroke="#d4a87a" stroke-width="1" fill="none" opacity="0.5"/>
+            <!-- Eye right -->
+            <ellipse cx="131" cy="106" rx="14" ry="9" fill="white"/>
+            <ellipse cx="131" cy="107" rx="7" ry="7" fill="#6a3f28"/>
+            <ellipse cx="131" cy="107" rx="4" ry="4" fill="#1a0e08"/>
+            <ellipse cx="134" cy="104" rx="2" ry="2" fill="white"/>
+            <path d="M117 106 Q131 98 145 106" stroke="#2a1a10" stroke-width="1.5" fill="none"/>
+            <path d="M117 106 Q131 114 145 106" stroke="#d4a87a" stroke-width="1" fill="none" opacity="0.5"/>
+            <!-- Nose -->
+            <path d="M100 110 L96 148 Q100 154 104 148 Z" fill="none" stroke="rgba(0,0,0,0.12)" stroke-width="1.5"/>
+            <ellipse cx="93" cy="150" rx="6" ry="4" fill="rgba(0,0,0,0.08)"/>
+            <ellipse cx="107" cy="150" rx="6" ry="4" fill="rgba(0,0,0,0.08)"/>
+            <!-- Lips -->
+            <path d="M82 170 Q100 164 118 170 Q110 178 100 180 Q90 178 82 170Z" fill="#c47060"/>
+            <path d="M82 170 Q100 174 118 170" fill="none" stroke="rgba(0,0,0,0.15)" stroke-width="0.8"/>
+            <path d="M87 170 Q100 165 113 170" fill="#d48070" opacity="0.6"/>
+            <!-- Cheek blush left -->
+            <ellipse cx="55" cy="145" rx="16" ry="10" fill="#d4896a" opacity="0.15"/>
+            <!-- Cheek blush right -->
+            <ellipse cx="145" cy="145" rx="16" ry="10" fill="#d4896a" opacity="0.15"/>
+          </svg>
+        </div>
+
+        <!-- Mesh wireframe (appears after scan) -->
+        <div class="mesh-overlay" id="meshOverlay">
+          <svg style="position:absolute;inset:0;width:100%;height:100%" viewBox="0 0 400 530" fill="none" xmlns="http://www.w3.org/2000/svg" opacity="0.35">
+            <!-- Landmark dots -->
+            <circle cx="138" cy="198" r="3" fill="#c9a96e"/>
+            <circle cx="262" cy="198" r="3" fill="#c9a96e"/>
+            <circle cx="200" cy="240" r="3" fill="#c9a96e"/>
+            <circle cx="200" cy="290" r="3" fill="#c9a96e"/>
+            <circle cx="168" cy="318" r="3" fill="#c9a96e"/>
+            <circle cx="232" cy="318" r="3" fill="#c9a96e"/>
+            <circle cx="105" cy="240" r="3" fill="#c9a96e" opacity="0.5"/>
+            <circle cx="295" cy="240" r="3" fill="#c9a96e" opacity="0.5"/>
+            <!-- Connections -->
+            <line x1="138" y1="198" x2="200" y2="240" stroke="#c9a96e" stroke-width="0.5"/>
+            <line x1="262" y1="198" x2="200" y2="240" stroke="#c9a96e" stroke-width="0.5"/>
+            <line x1="200" y1="240" x2="200" y2="290" stroke="#c9a96e" stroke-width="0.5"/>
+            <line x1="200" y1="290" x2="168" y2="318" stroke="#c9a96e" stroke-width="0.5"/>
+            <line x1="200" y1="290" x2="232" y2="318" stroke="#c9a96e" stroke-width="0.5"/>
+            <line x1="138" y1="198" x2="105" y2="240" stroke="#c9a96e" stroke-width="0.5" opacity="0.5"/>
+            <line x1="262" y1="198" x2="295" y2="240" stroke="#c9a96e" stroke-width="0.5" opacity="0.5"/>
+            <!-- Face outline points -->
+            <polyline points="90,190 80,220 78,250 80,280 90,305 108,328 130,345 158,355 200,360 242,355 270,345 292,328 310,305 320,280 322,250 320,220 310,190" fill="none" stroke="#c9a96e" stroke-width="0.5" opacity="0.4"/>
+          </svg>
+        </div>
+
+        <div class="scan-overlay">
+          <div class="scan-line" id="scanLine"></div>
+          <div class="scan-corner scan-corner-tl"></div>
+          <div class="scan-corner scan-corner-tr"></div>
+          <div class="scan-corner scan-corner-bl"></div>
+          <div class="scan-corner scan-corner-br"></div>
+        </div>
+        <div class="scan-status" id="scanStatus">Ready to scan</div>
+      </div>
+
+      <!-- Analysis results -->
+      <div class="analysis-grid" id="analysisGrid">
+        <div class="analysis-chip">
+          <div class="chip-label">Face Shape</div>
+          <div class="chip-value" id="chipFaceShape">—</div>
+          <div class="chip-sub" id="chipFaceShapeSub">Not yet detected</div>
+        </div>
+        <div class="analysis-chip">
+          <div class="chip-label">Skin Tone</div>
+          <div class="chip-value" id="chipTone">—</div>
+          <div class="chip-sub" id="chipToneSub">Not yet detected</div>
+        </div>
+        <div class="analysis-chip">
+          <div class="chip-label">Undertone</div>
+          <div class="chip-value" id="chipUndertone">—</div>
+          <div class="chip-sub" id="chipUndertoneSub">Not yet detected</div>
+        </div>
+        <div class="analysis-chip">
+          <div class="chip-label">Skin Type</div>
+          <div class="chip-value" id="chipSkinType">—</div>
+          <div class="chip-sub" id="chipSkinTypeSub">Not yet detected</div>
+        </div>
+      </div>
+
+      <button class="scan-btn" id="scanBtn" onclick="startScan()">
+        ✦ Scan My Face
+      </button>
+    </div>
+
+    <!-- Tone selector -->
+    <div class="tone-row-wrap">
+      <div class="section-label">Skin Tone</div>
+
+      <div class="tone-group-label">Fair & Light</div>
+      <div class="tone-row" id="lightTones"></div>
+
+      <div class="tone-group-label">Medium & Olive</div>
+      <div class="tone-row" id="mediumTones"></div>
+
+      <div class="tone-group-label">Deep & Rich</div>
+      <div class="tone-row" id="deepTones"></div>
+
+      <div class="selected-tone-info">
+        <div class="selected-dot" id="selectedDot" style="background:#f0d5bc;"></div>
+        <div class="selected-text">
+          <div class="name" id="selectedName">Ivory Warm</div>
+          <div class="sub" id="selectedUndertone">Warm · Ivory</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="filters-wrap">
+      <div class="section-label">Filters</div>
+
+      <!-- Budget -->
+      <div class="filter-group">
+        <div class="filter-title">Budget Range</div>
+        <div class="budget-labels"><span>Budget</span><span>Mid-range</span><span>Luxury</span></div>
+        <div class="slider-wrap">
+          <input type="range" min="5" max="300" value="80" id="budgetSlider" oninput="updateBudget(this)">
+        </div>
+        <div class="budget-value" id="budgetVal">Up to £80</div>
+      </div>
+
+      <!-- Preferences -->
+      <div class="filter-group">
+        <div class="filter-title">Preferences</div>
+        <div class="toggle-grid">
+          <div class="toggle-item" onclick="toggleFilter(this,'vegan')" data-filter="vegan">
+            <div class="toggle-dot"></div>
+            <span class="toggle-label">Vegan</span>
+          </div>
+          <div class="toggle-item" onclick="toggleFilter(this,'cruelty')" data-filter="cruelty">
+            <div class="toggle-dot"></div>
+            <span class="toggle-label">Cruelty-free</span>
+          </div>
+          <div class="toggle-item" onclick="toggleFilter(this,'silicone')" data-filter="silicone">
+            <div class="toggle-dot"></div>
+            <span class="toggle-label">Silicone-free</span>
+          </div>
+          <div class="toggle-item" onclick="toggleFilter(this,'paraben')" data-filter="paraben">
+            <div class="toggle-dot"></div>
+            <span class="toggle-label">Paraben-free</span>
+          </div>
+          <div class="toggle-item" onclick="toggleFilter(this,'fragrance')" data-filter="fragrance">
+            <div class="toggle-dot"></div>
+            <span class="toggle-label">Fragrance-free</span>
+          </div>
+          <div class="toggle-item" onclick="toggleFilter(this,'spf')" data-filter="spf">
+            <div class="toggle-dot"></div>
+            <span class="toggle-label">SPF Included</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Skin concerns -->
+      <div class="filter-group">
+        <div class="filter-title">Skin Concerns</div>
+        <div class="tag-row" id="concernTags">
+          <div class="concern-tag" onclick="toggleConcern(this)">Acne</div>
+          <div class="concern-tag" onclick="toggleConcern(this)">Dryness</div>
+          <div class="concern-tag" onclick="toggleConcern(this)">Oiliness</div>
+          <div class="concern-tag" onclick="toggleConcern(this)">Redness</div>
+          <div class="concern-tag" onclick="toggleConcern(this)">Hyperpigmentation</div>
+          <div class="concern-tag" onclick="toggleConcern(this)">Fine Lines</div>
+          <div class="concern-tag" onclick="toggleConcern(this)">Dark Circles</div>
+          <div class="concern-tag" onclick="toggleConcern(this)">Pores</div>
+        </div>
+      </div>
+
+      <!-- Coverage -->
+      <div class="filter-group">
+        <div class="filter-title">Foundation Coverage</div>
+        <div class="tag-row">
+          <div class="concern-tag active" onclick="toggleCoverage(this)">Light</div>
+          <div class="concern-tag" onclick="toggleCoverage(this)">Medium</div>
+          <div class="concern-tag" onclick="toggleCoverage(this)">Full</div>
+          <div class="concern-tag" onclick="toggleCoverage(this)">Buildable</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+  <!-- end left panel -->
+
+  <!-- ===== RIGHT PANEL ===== -->
+  <div class="right-panel">
+
+    <div class="marketplace-header">
+      <div class="mh-top">
+        <div>
+          <div class="mh-title">Your <em>Matches</em></div>
+          <div class="mh-subtitle">Personalised to your skin tone &amp; preferences</div>
+        </div>
+        <div style="text-align:right;">
+          <div class="mh-count" id="productCount">44 products</div>
+          <div class="mh-subtitle" id="filterSummary">All filters · Any budget</div>
+        </div>
+      </div>
+      <div class="category-tabs">
+        <button class="cat-tab active" onclick="setCategory(this,'foundation')">Foundation</button>
+        <button class="cat-tab" onclick="setCategory(this,'concealer')">Concealer</button>
+        <button class="cat-tab" onclick="setCategory(this,'blush')">Blush &amp; Bronzer</button>
+        <button class="cat-tab" onclick="setCategory(this,'eyes')">Eyes</button>
+        <button class="cat-tab" onclick="setCategory(this,'lips')">Lips</button>
+        <button class="cat-tab" onclick="setCategory(this,'skincare')">Skincare</button>
+        <button class="cat-tab" onclick="setCategory(this,'primer')">Primer</button>
+      </div>
+    </div>
+
+    <div class="sort-bar">
+      <div class="sort-left">
+        <span class="sort-label">Sort:</span>
+        <button class="sort-btn active" onclick="setSort(this,'match')">Best Match</button>
+        <button class="sort-btn" onclick="setSort(this,'price-asc')">Price ↑</button>
+        <button class="sort-btn" onclick="setSort(this,'price-desc')">Price ↓</button>
+        <button class="sort-btn" onclick="setSort(this,'rating')">Top Rated</button>
+      </div>
+      <div class="filter-count">Showing <span id="shownCount">8</span> of <span id="totalCount">24</span></div>
+    </div>
+
+    <div class="products-grid" id="productsGrid">
+      <!-- JS rendered -->
+    </div>
+
+  </div>
+  <!-- end right panel -->
+
+</div>
+
+<script>
+// ===== CURSOR =====
+const cursor = document.getElementById('cursor');
+const dot = cursor.querySelector('.cursor-dot');
+const ring = cursor.querySelector('.cursor-ring');
+let mx=0,my=0,rx=0,ry=0;
+document.addEventListener('mousemove',e=>{
+  mx=e.clientX; my=e.clientY;
+  // Dot is instant — no lag at all
+  dot.style.left=mx+'px'; dot.style.top=my+'px';
+});
+function animRing(){
+  // Ring follows quickly (0.35 lerp = very fast)
+  rx+=(mx-rx)*0.35; ry+=(my-ry)*0.35;
+  ring.style.left=rx+'px'; ring.style.top=ry+'px';
+  requestAnimationFrame(animRing);
+}
+animRing();
+
+// ===== BUDGET SLIDER =====
+function updateBudget(el){
+  const v=+el.value;
+  const pct=((v-5)/(300-5)*100).toFixed(1)+'%';
+  el.style.setProperty('--val',pct);
+  document.getElementById('budgetVal').textContent=v>=295?'No limit':'Up to £'+v;
+  renderProducts();
+  updateFilterSummary();
+}
+// init slider fill
+(()=>{
+  const sl=document.getElementById('budgetSlider');
+  const v=+sl.value;
+  sl.style.setProperty('--val',((v-5)/(300-5)*100).toFixed(1)+'%');
+})();
+
+// ===== TONE DATA =====
+const tones={
+  light:[
+    {id:'l1',name:'Porcelain',color:'#fbeee0',undertone:'Cool · Pink',group:'light'},
+    {id:'l2',name:'Ivory Warm',color:'#f4d9bc',undertone:'Warm · Ivory',group:'light'},
+    {id:'l3',name:'Nude Rose',color:'#eec8a8',undertone:'Neutral · Rose',group:'light'},
+    {id:'l4',name:'Warm Beige',color:'#e0b898',undertone:'Warm · Golden',group:'light'},
+  ],
+  medium:[
+    {id:'m1',name:'Honey',color:'#c8946a',undertone:'Warm · Honey',group:'medium'},
+    {id:'m2',name:'Caramel',color:'#b87c50',undertone:'Warm · Olive',group:'medium'},
+    {id:'m3',name:'Golden Tan',color:'#a86a38',undertone:'Warm · Golden',group:'medium'},
+    {id:'m4',name:'Olive',color:'#987060',undertone:'Neutral · Olive',group:'medium'},
+  ],
+  deep:[
+    {id:'d1',name:'Mahogany',color:'#784028',undertone:'Warm · Red',group:'deep'},
+    {id:'d2',name:'Espresso',color:'#5a2e18',undertone:'Cool · Neutral',group:'deep'},
+    {id:'d3',name:'Ebony',color:'#3a1e10',undertone:'Warm · Golden',group:'deep'},
+    {id:'d4',name:'Umber',color:'#6a3820',undertone:'Neutral · Brown',group:'deep'},
+  ],
+};
+
+let selectedTone={id:'l2',name:'Ivory Warm',color:'#f4d9bc',undertone:'Warm · Ivory',group:'light'};
+let currentCategory='foundation';
+let activeFilters=new Set();
+let budget=80;
+
+// ===== PRODUCT DATA =====
+const productDB = {
+  foundation:{
+    light:[
+      {brand:'NARS',name:'Natural Radiant Longwear',category:'Foundation',desc:'Medium-to-full coverage with a natural finish. Infused with skincare ingredients for a flawless, all-day look.',price:42,currency:'£',swatches:['#f4d9bc','#eec8a8','#e8be98'],shades:12,match:97,tags:['Cruelty-free'],vegan:false,cruelty:true,silicone:false,paraben:true,fragrance:false,spf:false,link:'https://www.nars.com',rating:4.6},
+      {brand:'Charlotte Tilbury',name:'Airbrush Flawless Foundation',category:'Foundation',desc:'A skin-perfecting foundation that blurs pores and fine lines for a flawlessly airbrushed effect that lasts 24 hours.',price:34,currency:'£',swatches:['#f0d5b0','#ead0ac','#e4caa8'],shades:44,match:93,tags:['Cruelty-free','Silicone-free'],vegan:false,cruelty:true,silicone:true,paraben:false,fragrance:false,spf:false,link:'https://www.charlottetilbury.com',rating:4.7},
+      {brand:'Fenty Beauty',name:'Pro Filt\'r Soft Matte',category:'Foundation',desc:'Long-wearing, transfer-resistant foundation with a soft-matte finish. 50 shades for every skin tone.',price:33,currency:'£',swatches:['#f5e0c8','#f0d8be','#ead0b4'],shades:50,match:88,tags:['Vegan','Cruelty-free'],vegan:true,cruelty:true,silicone:false,paraben:false,fragrance:false,spf:false,link:'https://www.fentybeauty.com',rating:4.5},
+      {brand:'Dior',name:'Forever Skin Glow Foundation',category:'Foundation',desc:'A luminous finish foundation with 24h hydration, enhanced with a golden flower complex for a healthy-looking glow.',price:48,currency:'£',swatches:['#f2dcc4','#ead4bc','#e2ccb4'],shades:40,match:91,tags:['SPF 15'],vegan:false,cruelty:false,silicone:false,paraben:false,fragrance:true,spf:true,link:'https://www.dior.com',rating:4.8},
+      {brand:'Ilia Beauty',name:'True Skin Serum Foundation',category:'Foundation',desc:'A buildable, skin-improving serum foundation with hyaluronic acid and niacinamide for a natural-skin finish.',price:46,currency:'£',swatches:['#f4dcc8','#ecd4c0','#e4cbb8'],shades:30,match:85,tags:['Vegan','Cruelty-free','Paraben-free','Silicone-free'],vegan:true,cruelty:true,silicone:true,paraben:true,fragrance:true,spf:false,link:'https://www.iliabeauty.com',rating:4.4},
+      {brand:'MAC',name:'Studio Fix Fluid SPF15',category:'Foundation',desc:'Medium-to-full buildable coverage with a matte finish. SPF 15 protection. Long-wearing formula.',price:31,currency:'£',swatches:['#f2dabb','#ecd2b3','#e6ccab'],shades:67,match:80,tags:['SPF 15'],vegan:false,cruelty:false,silicone:false,paraben:false,fragrance:false,spf:true,link:'https://www.maccosmetics.co.uk',rating:4.3},
+      {brand:'Rare Beauty',name:'Liquid Touch Weightless Foundation',category:'Foundation',desc:'A buildable, skin-like foundation that blends seamlessly for a weightless, natural finish that moves with the skin.',price:29,currency:'£',swatches:['#f3dcc2','#edd4ba','#e7cdb2'],shades:48,match:76,tags:['Vegan','Cruelty-free'],vegan:true,cruelty:true,silicone:false,paraben:true,fragrance:false,spf:false,link:'https://www.rarebeauty.com',rating:4.6},
+      {brand:'Armani Beauty',name:'Luminous Silk Foundation',category:'Foundation',desc:'The iconic silk-like formula delivers a veil-thin layer of coverage with an airbrushed, natural finish.',price:52,currency:'£',swatches:['#f0d8c2','#e8d0ba','#e0c8b2'],shades:40,match:72,tags:[],vegan:false,cruelty:false,silicone:false,paraben:false,fragrance:true,spf:false,link:'https://www.armanibeauty.co.uk',rating:4.8},
+      {brand:'Lancôme',name:'Teint Idole Ultra Wear',category:'Foundation',desc:'24-hour transfer-resistant foundation with a natural-matte finish. Developed with dermatologists for all-day comfort.',price:38,currency:'£',swatches:['#f4d8ba','#eed0b2','#e8caaa'],shades:40,match:90,tags:['SPF 15'],vegan:false,cruelty:false,silicone:false,paraben:false,fragrance:true,spf:true,link:'https://www.lancome.co.uk',rating:4.6},
+      {brand:'Estée Lauder',name:'Double Wear Stay-in-Place',category:'Foundation',desc:'The iconic 24-hour matte foundation trusted by professionals worldwide. Transfer-resistant from morning to night.',price:42,currency:'£',swatches:['#f2d6b8','#ecd0b2','#e6caac'],shades:56,match:86,tags:['SPF 10'],vegan:false,cruelty:false,silicone:false,paraben:false,fragrance:true,spf:true,link:'https://www.esteelauder.co.uk',rating:4.7},
+      {brand:"L'Oréal Paris",name:'True Match Super-Blendable Foundation',category:'Foundation',desc:'Matches your exact skin tone and undertone. 45 shades in warm, neutral and cool options.',price:13,currency:'£',swatches:['#f4d8ba','#eed2b4','#e8ccae'],shades:45,match:81,tags:['SPF 17'],vegan:false,cruelty:false,silicone:false,paraben:false,fragrance:false,spf:true,link:'https://www.loreal-paris.co.uk',rating:4.3},
+      {brand:'Maybelline',name:'Fit Me! Matte + Poreless',category:'Foundation',desc:'Oil-free formula blurs pores for a pure, natural matte finish. Bestselling drugstore option in 40 shades.',price:8,currency:'£',swatches:['#f2d6b8','#ecd0b2','#e6caac'],shades:40,match:76,tags:[],vegan:false,cruelty:false,silicone:false,paraben:false,fragrance:false,spf:false,link:'https://www.maybelline.co.uk',rating:4.2},
+      {brand:'Catrice',name:'HD Liquid Coverage Foundation',category:'Foundation',desc:'Full-coverage, high-definition formula for a porcelain-smooth finish. Vegan and cruelty-free at an unbeatable price.',price:5,currency:'£',swatches:['#f6dcc2','#f0d4ba','#eaceb2'],shades:10,match:68,tags:['Vegan','Cruelty-free'],vegan:true,cruelty:true,silicone:false,paraben:false,fragrance:false,spf:false,link:'https://www.catrice.eu',rating:4.1},
+      {brand:'Kosas',name:'Tinted Face Oil Foundation',category:'Foundation',desc:'A skin-forward, buildable foundation with a cocktail of 6 nourishing oils for a luminous, natural finish.',price:40,currency:'£',swatches:['#f2d8c0','#ecd2b8','#e6ccb0'],shades:24,match:89,tags:['Vegan','Cruelty-free','Silicone-free','Paraben-free'],vegan:true,cruelty:true,silicone:true,paraben:true,fragrance:false,spf:false,link:'https://kosas.com',rating:4.5},
+      {brand:'Westman Atelier',name:'Vital Skin Foundation Stick',category:'Foundation',desc:'A creamy, skin-enriching foundation stick with a radiant natural finish, enriched with ceramides and squalane.',price:58,currency:'£',swatches:['#f0d8c2','#ead0ba','#e4cab2'],shades:20,match:84,tags:['Vegan','Cruelty-free'],vegan:true,cruelty:true,silicone:false,paraben:false,fragrance:false,spf:false,link:'https://www.westmanatelier.com',rating:4.7},
+    ],
+    medium:[
+      {brand:'Fenty Beauty',name:'Pro Filt\'r Soft Matte',category:'Foundation',desc:'Long-wearing, transfer-resistant foundation with a soft-matte finish. 50 shades for every skin tone.',price:33,currency:'£',swatches:['#c89060','#c08058','#b87050'],shades:50,match:97,tags:['Vegan','Cruelty-free'],vegan:true,cruelty:true,silicone:false,paraben:false,fragrance:false,spf:false,link:'https://www.fentybeauty.com',rating:4.5},
+      {brand:'NARS',name:'Natural Radiant Longwear',category:'Foundation',desc:'Medium-to-full coverage with a natural finish. Award-winning formula loved by makeup artists worldwide.',price:42,currency:'£',swatches:['#c08858','#b87c50','#b07048'],shades:12,match:91,tags:['Cruelty-free'],vegan:false,cruelty:true,silicone:false,paraben:true,fragrance:false,spf:false,link:'https://www.nars.com',rating:4.6},
+      {brand:'Huda Beauty',name:'Faux Filter Luminous Matte',category:'Foundation',desc:'A full-coverage matte foundation with a luminous finish that keeps skin looking fresh all day.',price:36,currency:'£',swatches:['#b87850','#b07048','#a86840'],shades:39,match:88,tags:['Cruelty-free'],vegan:false,cruelty:true,silicone:false,paraben:false,fragrance:false,spf:false,link:'https://www.hudabeauty.com',rating:4.4},
+      {brand:'Too Faced',name:'Born This Way Foundation',category:'Foundation',desc:'Alpine rose and coconut water help blur imperfections. Medium-to-full coverage with a natural finish.',price:36,currency:'£',swatches:['#c08a5a','#b88050','#b07848'],shades:35,match:82,tags:['Cruelty-free'],vegan:false,cruelty:true,silicone:false,paraben:false,fragrance:false,spf:false,link:'https://www.toofaced.com',rating:4.3},
+      {brand:'Clinique',name:'Even Better Makeup SPF15',category:'Foundation',desc:'Colour-correcting, oil-free coverage reduces the look of dark spots for a healthier appearance over time.',price:33,currency:'£',swatches:['#b88060','#b07858','#a87050'],shades:58,match:78,tags:['Cruelty-free','SPF 15'],vegan:false,cruelty:true,silicone:false,paraben:false,fragrance:true,spf:true,link:'https://www.clinique.co.uk',rating:4.2},
+      {brand:'Ilia Beauty',name:'True Skin Serum Foundation',category:'Foundation',desc:'A buildable, skin-improving serum foundation with hyaluronic acid and niacinamide.',price:46,currency:'£',swatches:['#c09070','#b88868','#b08060'],shades:30,match:74,tags:['Vegan','Cruelty-free','Silicone-free'],vegan:true,cruelty:true,silicone:true,paraben:true,fragrance:true,spf:false,link:'https://www.iliabeauty.com',rating:4.4},
+      {brand:'Dior',name:'Forever Skin Correct Concealer',category:'Concealer',desc:'Full-coverage concealer that corrects, covers and cares for the skin with a comfortable natural finish.',price:38,currency:'£',swatches:['#c09070','#b88868','#b07860'],shades:20,match:71,tags:[],vegan:false,cruelty:false,silicone:false,paraben:false,fragrance:true,spf:false,link:'https://www.dior.com',rating:4.5},
+      {brand:'Charlotte Tilbury',name:'Beautiful Skin Foundation',category:'Foundation',desc:'A light-to-medium coverage foundation that visibly improves skin over time with collagen peptides.',price:36,currency:'£',swatches:['#bc8860','#b48058','#ac7850'],shades:30,match:66,tags:['Cruelty-free','SPF 15'],vegan:false,cruelty:true,silicone:false,paraben:false,fragrance:false,spf:true,link:'https://www.charlottetilbury.com',rating:4.6},
+      {brand:'Estée Lauder',name:'Double Wear Stay-in-Place',category:'Foundation',desc:'24-hour matte coverage built for all undertones. Extensive range of warm and cool medium shades.',price:42,currency:'£',swatches:['#c49070','#bc8868','#b48060'],shades:56,match:91,tags:['SPF 10'],vegan:false,cruelty:false,silicone:false,paraben:false,fragrance:true,spf:true,link:'https://www.esteelauder.co.uk',rating:4.7},
+      {brand:"L'Oréal Paris",name:'True Match Super-Blendable Foundation',category:'Foundation',desc:'Skin-true formula that seamlessly blends into warm and cool medium skin tones. 45 shade options.',price:13,currency:'£',swatches:['#c29070','#ba8868','#b28060'],shades:45,match:87,tags:['SPF 17'],vegan:false,cruelty:false,silicone:false,paraben:false,fragrance:false,spf:true,link:'https://www.loreal-paris.co.uk',rating:4.3},
+      {brand:'Bobbi Brown',name:'Skin Foundation',category:'Foundation',desc:'Buildable natural-finish foundation infused with skincare for a healthy, skin-true look.',price:50,currency:'£',swatches:['#c09070','#b88868','#b08060'],shades:42,match:79,tags:['SPF 15'],vegan:false,cruelty:false,silicone:false,paraben:false,fragrance:true,spf:true,link:'https://www.bobbibrown.co.uk',rating:4.5},
+      {brand:'Maybelline',name:'Fit Me! Matte + Poreless',category:'Foundation',desc:'Oil-free pore-blurring matte foundation. Excellent budget option with warm and cool medium shades.',price:8,currency:'£',swatches:['#c49270','#bc8a68','#b48260'],shades:40,match:72,tags:[],vegan:false,cruelty:false,silicone:false,paraben:false,fragrance:false,spf:false,link:'https://www.maybelline.co.uk',rating:4.2},
+      {brand:'Makeup Revolution',name:'Conceal & Define Foundation',category:'Foundation',desc:'Full-coverage formula in 50 shades at a budget-friendly price. Long-lasting and vegan.',price:9,currency:'£',swatches:['#c49270','#bc8868','#b48060'],shades:50,match:63,tags:['Vegan','Cruelty-free'],vegan:true,cruelty:true,silicone:false,paraben:false,fragrance:false,spf:false,link:'https://www.makeuprevolution.com',rating:4.0},
+      {brand:'Haus Labs',name:'Triclone Skin Tech Foundation',category:'Foundation',desc:'Lady Gaga\'s skin-positive foundation with 30 skincare ingredients including niacinamide, turmeric and fermented argan oil.',price:42,currency:'£',swatches:['#c89270','#c08868','#b88060'],shades:51,match:88,tags:['Vegan','Cruelty-free','Silicone-free'],vegan:true,cruelty:true,silicone:true,paraben:true,fragrance:true,spf:false,link:'https://hauslabs.com',rating:4.6},
+      {brand:'Sculpted by Aimee',name:'Serum Foundation',category:'Foundation',desc:'Buildable skin-tint foundation enriched with hyaluronic acid and vitamin C for a glowing complexion.',price:28,currency:'£',swatches:['#c49270','#bc8a68','#b48260'],shades:32,match:76,tags:['Cruelty-free'],vegan:false,cruelty:true,silicone:false,paraben:false,fragrance:false,spf:false,link:'https://sculptedbyaimee.com',rating:4.4},
+    ],
+    deep:[
+      {brand:'Fenty Beauty',name:'Pro Filt\'r Soft Matte',category:'Foundation',desc:'Long-wearing, transfer-resistant foundation with a soft-matte finish. 50 inclusive shades.',price:33,currency:'£',swatches:['#783828','#702e20','#6a2818'],shades:50,match:97,tags:['Vegan','Cruelty-free'],vegan:true,cruelty:true,silicone:false,paraben:false,fragrance:false,spf:false,link:'https://www.fentybeauty.com',rating:4.5},
+      {brand:'Black Up',name:'Full Cover Foundation',category:'Foundation',desc:'Full coverage formula with a natural finish, developed specifically for rich deep skin tones.',price:38,currency:'£',swatches:['#5a2e18','#521e10','#4c1808'],shades:24,match:93,tags:[],vegan:false,cruelty:false,silicone:false,paraben:false,fragrance:false,spf:false,link:'https://www.blackup.com/en',rating:4.7},
+      {brand:'Mented Cosmetics',name:'Semi-Matte Foundation',category:'Foundation',desc:'Buildable, skin-loving formula designed with deep skin tones in mind. Never chalky or ashy.',price:30,currency:'£',swatches:['#6a3020','#603018','#581e10'],shades:16,match:90,tags:['Vegan','Cruelty-free'],vegan:true,cruelty:true,silicone:false,paraben:true,fragrance:true,spf:false,link:'https://www.mentedcosmetics.com',rating:4.3},
+      {brand:'Armani Beauty',name:'Luminous Silk Foundation',category:'Foundation',desc:'Ultra-light coverage with a silk-like natural finish. Breathable formula for all-day comfort.',price:52,currency:'£',swatches:['#703828','#682e20','#602818'],shades:40,match:85,tags:[],vegan:false,cruelty:false,silicone:false,paraben:false,fragrance:true,spf:false,link:'https://www.armanibeauty.co.uk',rating:4.8},
+      {brand:'Make Up For Ever',name:'Ultra HD Foundation',category:'Foundation',desc:'Invisible skin-smoothing formula originally created for HD film. Flawless on camera and in life.',price:38,currency:'£',swatches:['#6c3020','#643018','#5c2810'],shades:40,match:80,tags:['Cruelty-free'],vegan:false,cruelty:true,silicone:false,paraben:false,fragrance:false,spf:false,link:'https://www.makeupforever.com',rating:4.4},
+      {brand:'Pat McGrath Labs',name:'Skin Fetish Foundation',category:'Foundation',desc:'A second-skin foundation with a luminous glow-from-within finish for all skin tones.',price:65,currency:'£',swatches:['#702e20','#683018','#603018'],shades:36,match:76,tags:[],vegan:false,cruelty:false,silicone:false,paraben:false,fragrance:false,spf:false,link:'https://www.patmcgrath.com',rating:4.9},
+      {brand:'NYX Professional',name:'Can\'t Stop Won\'t Stop Foundation',category:'Foundation',desc:'Full-coverage, long-lasting foundation for a matte finish. 24-hour wear formula.',price:14,currency:'£',swatches:['#6a2c1c','#623018','#5a2010'],shades:45,match:70,tags:['Vegan','Cruelty-free'],vegan:true,cruelty:true,silicone:false,paraben:false,fragrance:false,spf:false,link:'https://www.nyxcosmetics.co.uk',rating:4.1},
+      {brand:'Huda Beauty',name:'Faux Filter Luminous Matte',category:'Foundation',desc:'Full-coverage formula with 40 deep-shade options for melanin-rich complexions.',price:36,currency:'£',swatches:['#6e3020','#663018','#5e2818'],shades:39,match:65,tags:['Cruelty-free'],vegan:false,cruelty:true,silicone:false,paraben:false,fragrance:false,spf:false,link:'https://www.hudabeauty.com',rating:4.4},
+    ],
+  },
+  concealer:{
+    light:[
+      {brand:'NARS',name:'Radiant Creamy Concealer',category:'Concealer',desc:'Full-coverage creamy concealer that brightens, smooths and hydrates. For under eyes and blemishes.',price:27,currency:'£',swatches:['#f8e8d0','#f4e0c8','#f0d8be'],shades:30,match:95,tags:['Cruelty-free'],vegan:false,cruelty:true,silicone:false,paraben:false,fragrance:false,spf:false,link:'https://www.nars.com',rating:4.7},
+      {brand:'Tarte',name:'Shape Tape Contour Concealer',category:'Concealer',desc:'Full coverage, contour concealer enriched with mango butter and shea butter for a hydrating finish.',price:27,currency:'£',swatches:['#f6e2ca','#f0dcc4','#ead6be'],shades:35,match:90,tags:['Cruelty-free'],vegan:false,cruelty:true,silicone:false,paraben:true,fragrance:false,spf:false,link:'https://tartecosmetics.com',rating:4.5},
+      {brand:'Charlotte Tilbury',name:'Magic Away Concealer',category:'Concealer',desc:'Full-coverage concealer with a lightweight, undetectable texture. Covers dark circles and blemishes.',price:26,currency:'£',swatches:['#f5e2cc','#f0dcc8','#ecd6c2'],shades:18,match:85,tags:['Cruelty-free'],vegan:false,cruelty:true,silicone:false,paraben:false,fragrance:false,spf:false,link:'https://www.charlottetilbury.com',rating:4.6},
+      {brand:'e.l.f.',name:'16HR Camo Concealer',category:'Concealer',desc:'Full coverage, long-lasting concealer for a flawless finish. Vegan and cruelty-free.',price:9,currency:'£',swatches:['#f6e4ce','#f2dcca','#eed6c4'],shades:30,match:78,tags:['Vegan','Cruelty-free'],vegan:true,cruelty:true,silicone:false,paraben:false,fragrance:false,spf:false,link:'https://www.elfcosmetics.co.uk',rating:4.4},
+      {brand:'Makeup By Mario',name:'Surreal Skin Concealer',category:'Concealer',desc:'A creamy, full-coverage concealer infused with hyaluronic acid for skin that looks naturally perfected.',price:26,currency:'£',swatches:['#f8e8d4','#f4e0cc','#f0d8c4'],shades:20,match:87,tags:['Cruelty-free'],vegan:false,cruelty:true,silicone:false,paraben:false,fragrance:false,spf:false,link:'https://makeupbymario.com',rating:4.6},
+      {brand:'Ilia Beauty',name:'True Skin Serum Concealer',category:'Concealer',desc:'A buildable serum concealer that treats while it conceals, with hyaluronic acid and antioxidants.',price:32,currency:'£',swatches:['#f6e2cc','#f2dac4','#eed2bc'],shades:21,match:83,tags:['Vegan','Cruelty-free','Silicone-free'],vegan:true,cruelty:true,silicone:true,paraben:true,fragrance:true,spf:false,link:'https://www.iliabeauty.com',rating:4.5},
+    ],
+    medium:[
+      {brand:'NARS',name:'Radiant Creamy Concealer',category:'Concealer',desc:'Full-coverage creamy concealer that brightens, smooths and hydrates. For under eyes and blemishes.',price:27,currency:'£',swatches:['#c09070','#b88868','#b08060'],shades:30,match:95,tags:['Cruelty-free'],vegan:false,cruelty:true,silicone:false,paraben:false,fragrance:false,spf:false,link:'https://www.nars.com',rating:4.7},
+      {brand:'Fenty Beauty',name:'Pro Filt\'r Instant Retouch Concealer',category:'Concealer',desc:'High-performance, long-wearing concealer for a smooth, matte result.',price:24,currency:'£',swatches:['#bc8860','#b48058','#ac7850'],shades:50,match:90,tags:['Vegan','Cruelty-free'],vegan:true,cruelty:true,silicone:false,paraben:false,fragrance:false,spf:false,link:'https://www.fentybeauty.com',rating:4.5},
+      {brand:'Maybelline',name:'Fit Me Concealer',category:'Concealer',desc:'Natural-looking coverage that matches your true skin tone for a seamless, refreshed appearance.',price:7,currency:'£',swatches:['#c49070','#bc8868','#b48060'],shades:16,match:82,tags:[],vegan:false,cruelty:false,silicone:false,paraben:false,fragrance:false,spf:false,link:'https://www.maybelline.co.uk',rating:4.2},
+      {brand:'Armani Beauty',name:'Luminous Silk Concealer',category:'Concealer',desc:'Ultra-thin, buildable formula that provides natural-looking coverage for a velvety, smooth finish.',price:35,currency:'£',swatches:['#c29072','#ba8868','#b27f5e'],shades:40,match:76,tags:[],vegan:false,cruelty:false,silicone:false,paraben:false,fragrance:true,spf:false,link:'https://www.armanibeauty.co.uk',rating:4.7},
+    ],
+    deep:[
+      {brand:'Fenty Beauty',name:'Pro Filt\'r Instant Retouch Concealer',category:'Concealer',desc:'High-performance, long-wearing concealer for a smooth, matte result with 50 shades.',price:24,currency:'£',swatches:['#783828','#702e20','#6a2818'],shades:50,match:97,tags:['Vegan','Cruelty-free'],vegan:true,cruelty:true,silicone:false,paraben:false,fragrance:false,spf:false,link:'https://www.fentybeauty.com',rating:4.5},
+      {brand:'Black Radiance',name:'True Complexion Concealer',category:'Concealer',desc:'Creamy concealer specifically formulated for deeper skin tones. Covers without ashiness.',price:9,currency:'£',swatches:['#6a3020','#603018','#581e10'],shades:8,match:90,tags:[],vegan:false,cruelty:false,silicone:false,paraben:false,fragrance:false,spf:false,link:'https://www.blackradiancebeauty.com',rating:4.2},
+      {brand:'NARS',name:'Radiant Creamy Concealer',category:'Concealer',desc:'Full-coverage creamy concealer with a radiant finish. Iconic formula loved worldwide.',price:27,currency:'£',swatches:['#703828','#682e20','#602818'],shades:30,match:85,tags:['Cruelty-free'],vegan:false,cruelty:true,silicone:false,paraben:false,fragrance:false,spf:false,link:'https://www.nars.com',rating:4.7},
+      {brand:'Huda Beauty',name:'The Overachiever Concealer',category:'Concealer',desc:'Lightweight, full-coverage concealer enriched with skincare ingredients for an all-day finish.',price:26,currency:'£',swatches:['#6e3020','#663018','#5e2818'],shades:30,match:80,tags:['Cruelty-free'],vegan:false,cruelty:true,silicone:false,paraben:false,fragrance:false,spf:false,link:'https://www.hudabeauty.com',rating:4.4},
+    ],
+    // stub others
+  },
+  blush:{
+    light:[
+      {brand:'Charlotte Tilbury',name:'Cheek to Chic Blush',category:'Blush',desc:'Duo-shade blush with a silky texture and buildable colour. Delivers a lit-from-within flush.',price:38,currency:'£',swatches:['#f0b0b0','#e89898','#f0c8b0'],shades:8,match:96,tags:['Cruelty-free'],vegan:false,cruelty:true,silicone:false,paraben:false,fragrance:false,spf:false,link:'https://www.charlottetilbury.com',rating:4.8},
+      {brand:'NARS',name:'Blush in Orgasm',category:'Blush',desc:'The iconic peachy-pink shade with golden shimmer. Universal blush that flatters all skin tones.',price:30,currency:'£',swatches:['#f5a88a','#f09878','#ec8a68'],shades:1,match:90,tags:['Cruelty-free'],vegan:false,cruelty:true,silicone:false,paraben:false,fragrance:false,spf:false,link:'https://www.nars.com',rating:4.9},
+      {brand:'Rare Beauty',name:'Soft Pinch Liquid Blush',category:'Blush',desc:'A weightless liquid blush formula with a little going a long way. Blends seamlessly.',price:22,currency:'£',swatches:['#f0a098','#e89088','#f0b0b0'],shades:16,match:88,tags:['Vegan','Cruelty-free'],vegan:true,cruelty:true,silicone:false,paraben:false,fragrance:false,spf:false,link:'https://www.rarebeauty.com',rating:4.7},
+      {brand:'Tower 28',name:'BeachPlease Lip + Cheek Cream',category:'Blush',desc:'Clean, creamy blush for cheeks and lips. Free of all common irritants.',price:20,currency:'£',swatches:['#f5b0a8','#efa098','#e99088'],shades:10,match:82,tags:['Vegan','Cruelty-free','Silicone-free','Fragrance-free'],vegan:true,cruelty:true,silicone:true,paraben:true,fragrance:true,spf:false,link:'https://tower28beauty.com',rating:4.5},
+      {brand:'Saie',name:'Dew Blush Liquid Blush',category:'Blush',desc:'An ultra-dewy liquid blush that layers beautifully for a buildable, flushed-from-within look.',price:22,currency:'£',swatches:['#f0aaaa','#e89898','#ecb0ac'],shades:8,match:86,tags:['Vegan','Cruelty-free','Silicone-free'],vegan:true,cruelty:true,silicone:true,paraben:true,fragrance:true,spf:false,link:'https://saiebeauty.com',rating:4.4},
+      {brand:'Trinny London',name:'BFF Cream in Blush',category:'Blush',desc:'Multi-use cream blush that adapts to your skin tone for a personalised, natural glow.',price:30,currency:'£',swatches:['#f2b0a8','#eca8a0','#e8a098'],shades:6,match:79,tags:['Cruelty-free'],vegan:false,cruelty:true,silicone:false,paraben:false,fragrance:false,spf:false,link:'https://www.trinnylondon.com',rating:4.5},
+    ],
+    medium:[
+      {brand:'Fenty Beauty',name:'Cheeks Out Freestyle Cream Blush',category:'Blush',desc:'Blendable, buildable cream blush that melts into skin for a natural flush of colour.',price:24,currency:'£',swatches:['#d08060','#c07050','#e09070'],shades:12,match:96,tags:['Vegan','Cruelty-free'],vegan:true,cruelty:true,silicone:false,paraben:false,fragrance:false,spf:false,link:'https://www.fentybeauty.com',rating:4.6},
+      {brand:'NARS',name:'Blush in Sin',category:'Blush',desc:'Deep rose with golden shimmer — universally flattering on warm medium skin tones.',price:30,currency:'£',swatches:['#c87060','#bc6050','#d08070'],shades:1,match:90,tags:['Cruelty-free'],vegan:false,cruelty:true,silicone:false,paraben:false,fragrance:false,spf:false,link:'https://www.nars.com',rating:4.8},
+      {brand:'Huda Beauty',name:'Tantour Contour & Bronzer Cream',category:'Bronzer',desc:'Multi-tasking cream formula that works as a bronzer, contour and blush in one product.',price:30,currency:'£',swatches:['#b87050','#a86040','#c88060'],shades:6,match:84,tags:['Cruelty-free'],vegan:false,cruelty:true,silicone:false,paraben:false,fragrance:false,spf:false,link:'https://www.hudabeauty.com',rating:4.5},
+      {brand:'Rare Beauty',name:'Soft Pinch Liquid Blush in Lovey',category:'Blush',desc:'A rich terracotta-rose liquid blush for warm medium tones.',price:22,currency:'£',swatches:['#d07860','#c87058','#d88068'],shades:16,match:80,tags:['Vegan','Cruelty-free'],vegan:true,cruelty:true,silicone:false,paraben:false,fragrance:false,spf:false,link:'https://www.rarebeauty.com',rating:4.7},
+    ],
+    deep:[
+      {brand:'Fenty Beauty',name:'Cheeks Out Freestyle Cream Blush in Berry',category:'Blush',desc:'A deep berry cream blush that photographs beautifully on rich skin tones.',price:24,currency:'£',swatches:['#801838','#601028','#a02848'],shades:12,match:97,tags:['Vegan','Cruelty-free'],vegan:true,cruelty:true,silicone:false,paraben:false,fragrance:false,spf:false,link:'https://www.fentybeauty.com',rating:4.6},
+      {brand:'Black Radiance',name:'True Complexion Powder Bronzer',category:'Bronzer',desc:'Silky bronzer formula designed for darker skin tones. Never chalky or grey.',price:10,currency:'£',swatches:['#6a2010','#601808','#742818'],shades:4,match:90,tags:[],vegan:false,cruelty:false,silicone:false,paraben:false,fragrance:false,spf:false,link:'https://www.blackradiancebeauty.com',rating:4.3},
+      {brand:'Pat McGrath Labs',name:'Skin Fetish Sublime Perfection Blush',category:'Blush',desc:'A velvety blush with spectacular pigment for bold, luminous colour on deep skin tones.',price:42,currency:'£',swatches:['#801838','#701028','#902038'],shades:6,match:88,tags:[],vegan:false,cruelty:false,silicone:false,paraben:false,fragrance:false,spf:false,link:'https://www.patmcgrath.com',rating:4.9},
+      {brand:'Nudestix',name:'Nudies Bloom Blush',category:'Blush',desc:'Clean, on-the-go stick blush for a buildable flush of healthy colour.',price:23,currency:'£',swatches:['#8a2030','#781828','#9a2838'],shades:8,match:82,tags:['Vegan','Cruelty-free'],vegan:true,cruelty:true,silicone:true,paraben:true,fragrance:true,spf:false,link:'https://nudestix.com',rating:4.4},
+    ],
+  },
+  eyes:{
+    light:[
+      {brand:'Urban Decay',name:'Naked3 Eyeshadow Palette',category:'Eyeshadow Palette',desc:'12 rose-toned neutrals with a mix of mattes and shimmers, perfect for fair cool-toned complexions.',price:54,currency:'£',swatches:['#d4a4a0','#c09090','#e0b8b0'],shades:12,match:95,tags:['Cruelty-free'],vegan:false,cruelty:true,silicone:false,paraben:false,fragrance:false,spf:false,link:'https://www.urbandecay.com',rating:4.6},
+      {brand:'Charlotte Tilbury',name:'Pillow Talk Luxury Palette',category:'Eyeshadow Palette',desc:'The iconic Pillow Talk palette with soft pinks, golds and nudes for a dreamy, wearable look.',price:46,currency:'£',swatches:['#e8c0c0','#d4b0a0','#c4a090'],shades:6,match:90,tags:['Cruelty-free'],vegan:false,cruelty:true,silicone:false,paraben:false,fragrance:false,spf:false,link:'https://www.charlottetilbury.com',rating:4.8},
+      {brand:'Too Faced',name:'Better Than Sex Mascara',category:'Mascara',desc:'The best-selling mascara with a voluptuous, collar-shaped brush for dramatic lashes.',price:26,currency:'£',swatches:['#101010','#181818','#080808'],shades:3,match:88,tags:['Cruelty-free'],vegan:false,cruelty:true,silicone:false,paraben:false,fragrance:false,spf:false,link:'https://www.toofaced.com',rating:4.7},
+      {brand:'NARS',name:'Larger Than Life Eyeliner',category:'Eyeliner',desc:'A highly pigmented, long-lasting eyeliner pen for precise, vivid lines.',price:24,currency:'£',swatches:['#080808','#181818','#101010'],shades:8,match:85,tags:['Cruelty-free'],vegan:false,cruelty:true,silicone:false,paraben:false,fragrance:false,spf:false,link:'https://www.nars.com',rating:4.4},
+      {brand:'Lancôme',name:'Hypnôse Drama Mascara',category:'Mascara',desc:'An intensifying mascara with a full-lash brush that delivers maximum volume and dramatic definition.',price:28,currency:'£',swatches:['#080808','#101010','#181818'],shades:2,match:90,tags:[],vegan:false,cruelty:false,silicone:false,paraben:false,fragrance:false,spf:false,link:'https://www.lancome.co.uk',rating:4.6},
+      {brand:'Benefit',name:'BADgal BANG! Mascara',category:'Mascara',desc:'Aerospace technology delivers 36-hour wear with extreme volume. Lightweight and buildable.',price:27,currency:'£',swatches:['#080808','#101010','#181818'],shades:2,match:86,tags:[],vegan:false,cruelty:false,silicone:false,paraben:false,fragrance:false,spf:false,link:'https://www.benefitcosmetics.com',rating:4.7},
+    ],
+    medium:[
+      {brand:'Urban Decay',name:'Naked Heat Palette',category:'Eyeshadow Palette',desc:'12 amber-hued neutrals with browns, coppers and reds that flatter warm medium tones.',price:54,currency:'£',swatches:['#c07030','#a05828','#d49050'],shades:12,match:96,tags:['Cruelty-free'],vegan:false,cruelty:true,silicone:false,paraben:false,fragrance:false,spf:false,link:'https://www.urbandecay.com',rating:4.7},
+      {brand:'Anastasia Beverly Hills',name:'Riviera Palette',category:'Eyeshadow Palette',desc:'Golden sun-kissed palette with warm mattes and shimmers perfect for olive and medium skin.',price:45,currency:'£',swatches:['#d4a050','#b88040','#c89040'],shades:14,match:91,tags:[],vegan:false,cruelty:false,silicone:false,paraben:false,fragrance:false,spf:false,link:'https://www.anastasiabeverlyhills.com',rating:4.5},
+      {brand:'Charlotte Tilbury',name:'Pillow Talk Eyeliner',category:'Eyeliner',desc:'A multi-tasking pencil that can be worn as a liner or smudged for a smoky look. Warm rose tone.',price:22,currency:'£',swatches:['#a06040','#906030','#886030'],shades:5,match:86,tags:['Cruelty-free'],vegan:false,cruelty:true,silicone:false,paraben:false,fragrance:false,spf:false,link:'https://www.charlottetilbury.com',rating:4.6},
+      {brand:'MAC',name:'Kohl Power Eye Pencil',category:'Eyeliner',desc:'A rich, creamy pencil with an intensely pigmented formula for impactful eye definition.',price:18,currency:'£',swatches:['#101010','#181818','#080808'],shades:20,match:80,tags:[],vegan:false,cruelty:false,silicone:false,paraben:false,fragrance:false,spf:false,link:'https://www.maccosmetics.co.uk',rating:4.3},
+    ],
+    deep:[
+      {brand:'Morphe',name:'35O Rust & Burgundy Palette',category:'Eyeshadow Palette',desc:'Rich, deeply pigmented palette with intense rust, burgundy and bronze tones for dark complexions.',price:22,currency:'£',swatches:['#6a1010','#501010','#801818'],shades:35,match:97,tags:['Cruelty-free'],vegan:false,cruelty:true,silicone:false,paraben:false,fragrance:false,spf:false,link:'https://www.morphe.com',rating:4.5},
+      {brand:'Pat McGrath Labs',name:'Mothership IX Eyeshadow Palette',category:'Eyeshadow Palette',desc:'Dramatic golds, bronzes and gunmetals with extraordinary pigment, perfect for deep rich skin.',price:135,currency:'£',swatches:['#181808','#282808','#383818'],shades:10,match:93,tags:[],vegan:false,cruelty:false,silicone:false,paraben:false,fragrance:false,spf:false,link:'https://www.patmcgrath.com',rating:4.9},
+      {brand:'NYX Professional',name:'Ultimate Shadow Palette',category:'Eyeshadow Palette',desc:'16 ultra-pigmented shades in smoky neutrals and deep tones. Vegan formula.',price:18,currency:'£',swatches:['#181818','#282828','#383838'],shades:16,match:87,tags:['Vegan','Cruelty-free'],vegan:true,cruelty:true,silicone:false,paraben:false,fragrance:false,spf:false,link:'https://www.nyxcosmetics.co.uk',rating:4.3},
+      {brand:'Fenty Beauty',name:'Snap Shadows Mix & Match Palette',category:'Eyeshadow Palette',desc:'Curated 6-shade palettes designed for deep skin tones with highly saturated pigments.',price:24,currency:'£',swatches:['#2a1010','#3a2020','#4a3030'],shades:6,match:83,tags:['Vegan','Cruelty-free'],vegan:true,cruelty:true,silicone:false,paraben:false,fragrance:false,spf:false,link:'https://www.fentybeauty.com',rating:4.5},
+    ],
+  },
+  lips:{
+    light:[
+      {brand:'Charlotte Tilbury',name:'Matte Revolution in Pillow Talk',category:'Lipstick',desc:'The iconic Pillow Talk nude-pink with a satin matte finish and subtle sparkle.',price:27,currency:'£',swatches:['#d09090','#c88080','#c07070'],shades:1,match:95,tags:['Cruelty-free'],vegan:false,cruelty:true,silicone:false,paraben:false,fragrance:true,spf:false,link:'https://www.charlottetilbury.com',rating:4.9},
+      {brand:'NARS',name:'Afterglow Lip Balm',category:'Lip Balm',desc:'Intensely nourishing lip balm with a sheer wash of colour for natural-looking shine.',price:25,currency:'£',swatches:['#f0a0a0','#e89090','#ec9898'],shades:10,match:90,tags:['Cruelty-free'],vegan:false,cruelty:true,silicone:false,paraben:false,fragrance:false,spf:false,link:'https://www.nars.com',rating:4.6},
+      {brand:'Rare Beauty',name:'Kind Words Matte Lipstick',category:'Lipstick',desc:'An ultralightweight matte lipstick that hydrates and conditions lips throughout the day.',price:21,currency:'£',swatches:['#c08080','#b87070','#d09090'],shades:20,match:85,tags:['Vegan','Cruelty-free'],vegan:true,cruelty:true,silicone:false,paraben:false,fragrance:false,spf:false,link:'https://www.rarebeauty.com',rating:4.5},
+      {brand:'Fenty Beauty',name:'Gloss Bomb Universal Lip Luminizer',category:'Lip Gloss',desc:'Universally flattering high-shine lip gloss with vanilla scent that looks good on everyone.',price:19,currency:'£',swatches:['#f5c8c8','#f0c0b8','#ebb8b0'],shades:8,match:82,tags:['Vegan','Cruelty-free'],vegan:true,cruelty:true,silicone:false,paraben:false,fragrance:true,spf:false,link:'https://www.fentybeauty.com',rating:4.7},
+    ],
+    medium:[
+      {brand:'MAC',name:'Ruby Woo Lipstick',category:'Lipstick',desc:'MAC\'s most iconic shade — a retro blue-red with a matte finish that pops on warm medium skin.',price:19,currency:'£',swatches:['#b82020','#a81818','#c82828'],shades:1,match:93,tags:[],vegan:false,cruelty:false,silicone:false,paraben:false,fragrance:true,spf:false,link:'https://www.maccosmetics.co.uk',rating:4.9},
+      {brand:'Charlotte Tilbury',name:'Matte Revolution in Bond Girl',category:'Lipstick',desc:'A warm, spiced nude-pink that complements medium warm undertones beautifully.',price:27,currency:'£',swatches:['#c08060','#b87050','#c89070'],shades:1,match:91,tags:['Cruelty-free'],vegan:false,cruelty:true,silicone:false,paraben:false,fragrance:true,spf:false,link:'https://www.charlottetilbury.com',rating:4.8},
+      {brand:'Huda Beauty',name:'Power Bullet Matte Lipstick',category:'Lipstick',desc:'Richly pigmented matte lipstick with a comfortable, long-wearing formula.',price:22,currency:'£',swatches:['#b07060','#a06050','#c08070'],shades:30,match:86,tags:['Cruelty-free'],vegan:false,cruelty:true,silicone:false,paraben:false,fragrance:false,spf:false,link:'https://www.hudabeauty.com',rating:4.5},
+      {brand:'Fenty Beauty',name:'Stunna Lip Paint in Uncensored',category:'Liquid Lipstick',desc:'The original universally flattering red. Long-lasting, stay-all-day formula.',price:24,currency:'£',swatches:['#c02020','#b01818','#d02828'],shades:12,match:82,tags:['Vegan','Cruelty-free'],vegan:true,cruelty:true,silicone:false,paraben:false,fragrance:false,spf:false,link:'https://www.fentybeauty.com',rating:4.7},
+      {brand:'Bobbi Brown',name:'Crushed Lip Color',category:'Lipstick',desc:'A comfortable, moisturising lip colour with buildable pigmentation and a natural, barely-there finish.',price:28,currency:'£',swatches:['#c07860','#b87058','#c88870'],shades:30,match:88,tags:[],vegan:false,cruelty:false,silicone:false,paraben:false,fragrance:true,spf:false,link:'https://www.bobbibrown.co.uk',rating:4.6},
+      {brand:'Kosas',name:'Wet Lip Oil Gloss',category:'Lip Gloss',desc:'Nourishing, high-shine gloss with peptides and hyaluronic acid for plump, hydrated lips.',price:22,currency:'£',swatches:['#d09070','#c88868','#d89878'],shades:12,match:85,tags:['Vegan','Cruelty-free'],vegan:true,cruelty:true,silicone:false,paraben:false,fragrance:false,spf:false,link:'https://kosas.com',rating:4.5},
+    ],
+    deep:[
+      {brand:'Fenty Beauty',name:'Stunna Lip Paint in Uncensored',category:'Liquid Lipstick',desc:'The original universally flattering red. Long-lasting, stay-all-day formula.',price:24,currency:'£',swatches:['#c02020','#b01818','#d02828'],shades:12,match:97,tags:['Vegan','Cruelty-free'],vegan:true,cruelty:true,silicone:false,paraben:false,fragrance:false,spf:false,link:'https://www.fentybeauty.com',rating:4.7},
+      {brand:'MAC',name:'Velvet Teddy Lipstick',category:'Lipstick',desc:'A warm brownish-nude that creates the illusion of deeper, fuller lips on dark skin tones.',price:19,currency:'£',swatches:['#8a4028','#7a3820','#9a4830'],shades:1,match:92,tags:[],vegan:false,cruelty:false,silicone:false,paraben:false,fragrance:true,spf:false,link:'https://www.maccosmetics.co.uk',rating:4.8},
+      {brand:'Pat McGrath Labs',name:'Satinallure Lipstick',category:'Lipstick',desc:'Intensely pigmented lip colour with a satin finish. Rich, deep tones created for melanin-rich skin.',price:28,currency:'£',swatches:['#6a1818','#581010','#7a2020'],shades:20,match:88,tags:[],vegan:false,cruelty:false,silicone:false,paraben:false,fragrance:false,spf:false,link:'https://www.patmcgrath.com',rating:4.9},
+      {brand:'Mented Cosmetics',name:'Semi-Matte Lipstick',category:'Lipstick',desc:'Created specifically for women of colour — formulated to show true colour on deeper skin tones.',price:18,currency:'£',swatches:['#7a2828','#6a1818','#8a3030'],shades:15,match:84,tags:['Vegan','Cruelty-free'],vegan:true,cruelty:true,silicone:false,paraben:true,fragrance:true,spf:false,link:'https://www.mentedcosmetics.com',rating:4.4},
+    ],
+  },
+  skincare:{
+    light:[
+      {brand:'Tatcha',name:'The Water Cream',category:'Moisturiser',desc:'An oil-free, anti-ageing hydrator that delivers a burst of deep hydration and a poreless, smooth finish.',price:68,currency:'£',swatches:['#f5f0ec','#f0ebe6','#ece6e0'],shades:1,match:92,tags:['Cruelty-free','Vegan'],vegan:true,cruelty:true,silicone:true,paraben:true,fragrance:false,spf:false,link:'https://www.tatcha.com',rating:4.7},
+      {brand:'La Mer',name:'Crème de la Mer',category:'Moisturiser',desc:'The legendary moisturiser with Miracle Broth™ for incomparable nourishment and a luminous look.',price:165,currency:'£',swatches:['#f8f4f0','#f4f0ec','#f0ece8'],shades:1,match:88,tags:[],vegan:false,cruelty:false,silicone:false,paraben:false,fragrance:true,spf:false,link:'https://www.cremedelamer.co.uk',rating:4.8},
+      {brand:'CeraVe',name:'Moisturising Cream',category:'Moisturiser',desc:'Developed with dermatologists. Contains three essential ceramides and hyaluronic acid.',price:12,currency:'£',swatches:['#f8f5f2','#f4f0ec','#f0ece8'],shades:1,match:85,tags:['Fragrance-free'],vegan:false,cruelty:false,silicone:false,paraben:false,fragrance:true,spf:false,link:'https://www.cerave.co.uk',rating:4.5},
+      {brand:'Glow Recipe',name:'Watermelon Glow Niacinamide Dew Drops',category:'Serum',desc:'Brightening serum with niacinamide, hyaluronic acid and watermelon extract for a dewy finish.',price:34,currency:'£',swatches:['#ffeedd','#ffe4d4','#ffdcc8'],shades:1,match:80,tags:['Vegan','Cruelty-free','Silicone-free'],vegan:true,cruelty:true,silicone:true,paraben:true,fragrance:true,spf:false,link:'https://www.glowrecipe.com',rating:4.5},
+      {brand:'Paula\'s Choice',name:'Skin Perfecting 2% BHA Liquid Exfoliant',category:'Serum',desc:'Cult-favourite exfoliant that unclogs pores, smooths wrinkles and fights blemishes for radiant skin.',price:32,currency:'£',swatches:['#faf6f2','#f6f2ee','#f2eeea'],shades:1,match:86,tags:['Vegan','Cruelty-free','Fragrance-free'],vegan:true,cruelty:true,silicone:false,paraben:false,fragrance:true,spf:false,link:'https://www.paulaschoice.co.uk',rating:4.8},
+      {brand:'Skinceuticals',name:'C E Ferulic Serum',category:'Serum',desc:'Advanced antioxidant serum combining 15% pure vitamin C with vitamin E and ferulic acid for maximum protection.',price:166,currency:'£',swatches:['#fffef8','#fffef4','#fffeee'],shades:1,match:91,tags:['Cruelty-free'],vegan:false,cruelty:true,silicone:false,paraben:false,fragrance:false,spf:false,link:'https://www.skinceuticals.co.uk',rating:4.9},
+    ],
+    medium:[
+      {brand:'Sunday Riley',name:'Good Genes All-In-One Lactic Acid Treatment',category:'Serum',desc:'Purified lactic acid clarifies, plumps and brightens, visibly reducing the appearance of dark spots.',price:85,currency:'£',swatches:['#fff8e8','#fff4e0','#fff0d8'],shades:1,match:93,tags:['Cruelty-free'],vegan:false,cruelty:true,silicone:false,paraben:false,fragrance:false,spf:false,link:'https://www.sundayriley.com',rating:4.7},
+      {brand:'Drunk Elephant',name:'Protini Polypeptide Cream',category:'Moisturiser',desc:'A protein-rich moisturiser that visibly improves skin tone, texture and firmness.',price:64,currency:'£',swatches:['#f8f4f0','#f4f0ec','#f0ece8'],shades:1,match:88,tags:['Vegan','Cruelty-free','Silicone-free','Fragrance-free'],vegan:true,cruelty:true,silicone:true,paraben:true,fragrance:true,spf:false,link:'https://www.drunkelephant.com',rating:4.6},
+      {brand:'The Ordinary',name:'Niacinamide 10% + Zinc 1%',category:'Serum',desc:'High-strength vitamin and mineral formula that reduces the appearance of blemishes and pores.',price:5,currency:'£',swatches:['#f8f6f4','#f4f2f0','#f0eeec'],shades:1,match:84,tags:['Vegan','Cruelty-free'],vegan:true,cruelty:true,silicone:false,paraben:false,fragrance:true,spf:false,link:'https://theordinary.com',rating:4.4},
+      {brand:'Clinique',name:'Moisture Surge 100H Auto-Replenishing Hydrator',category:'Moisturiser',desc:'An oil-free gel cream that provides an intense blast of moisture that lasts up to 100 hours.',price:36,currency:'£',swatches:['#f5f0ec','#f1ece8','#ede8e4'],shades:1,match:79,tags:['Cruelty-free','Fragrance-free'],vegan:false,cruelty:true,silicone:false,paraben:false,fragrance:true,spf:false,link:'https://www.clinique.co.uk',rating:4.5},
+      {brand:'Estée Lauder',name:'Advanced Night Repair Serum',category:'Serum',desc:'Award-winning anti-ageing serum that visibly reduces lines, brightens and hydrates overnight.',price:85,currency:'£',swatches:['#fff8f0','#fff4ec','#fff0e8'],shades:1,match:90,tags:[],vegan:false,cruelty:false,silicone:false,paraben:false,fragrance:false,spf:false,link:'https://www.esteelauder.co.uk',rating:4.8},
+      {brand:'Byoma',name:'Brightening Serum',category:'Serum',desc:'Barrier-boosting brightening serum with tri-citica complex for an even, radiant complexion.',price:16,currency:'£',swatches:['#fdf8f4','#f9f4f0','#f5f0ec'],shades:1,match:84,tags:['Vegan','Cruelty-free'],vegan:true,cruelty:true,silicone:false,paraben:false,fragrance:true,spf:false,link:'https://byoma.com',rating:4.5},
+    ],
+    deep:[
+      {brand:'SheaMoisture',name:'Manuka Honey & Mafura Oil Intensive Hydration Face Cream',category:'Moisturiser',desc:'Rich, intensive formula formulated for melanin-rich skin. Deeply hydrates without heaviness.',price:14,currency:'£',swatches:['#f8f2e8','#f4ede0','#f0e8d8'],shades:1,match:95,tags:['Vegan','Cruelty-free'],vegan:true,cruelty:true,silicone:false,paraben:true,fragrance:false,spf:false,link:'https://www.sheamoisture.com',rating:4.5},
+      {brand:'Topicals',name:'Faded Under Eye & Hyperpigmentation Brightening Serum',category:'Serum',desc:'Targets hyperpigmentation, dark spots and uneven skin tone common in deeper skin tones.',price:38,currency:'£',swatches:['#fef4ec','#feefe4','#feead8'],shades:1,match:92,tags:['Vegan','Cruelty-free'],vegan:true,cruelty:true,silicone:true,paraben:true,fragrance:true,spf:false,link:'https://mytopicals.com',rating:4.6},
+      {brand:'The Inkey List',name:'Tranexamic Acid Night Treatment',category:'Serum',desc:'Overnight treatment that fades hyperpigmentation and evens skin tone while you sleep.',price:15,currency:'£',swatches:['#f8f4f0','#f4f0ec','#f0ece8'],shades:1,match:88,tags:['Vegan','Cruelty-free'],vegan:true,cruelty:true,silicone:false,paraben:false,fragrance:true,spf:false,link:'https://theinkeylist.com',rating:4.4},
+      {brand:'Neutrogena',name:'Rapid Tone Repair Dark Spot Corrector',category:'Serum',desc:'Concentrated retinol formula that targets dark spots and uneven tone in 1 week.',price:14,currency:'£',swatches:['#f6f2ee','#f2eeea','#eeeae6'],shades:1,match:82,tags:[],vegan:false,cruelty:false,silicone:false,paraben:false,fragrance:false,spf:false,link:'https://www.neutrogena.co.uk',rating:4.2},
+    ],
+  },
+  primer:{
+    light:[
+      {brand:'Smashbox',name:'Photo Finish Smooth & Blur Primer',category:'Primer',desc:'Creates a silky-smooth canvas that minimises pores and fine lines for a flawless foundation application.',price:37,currency:'£',swatches:['#f5f0ec','#f0ebe6','#ece6e0'],shades:1,match:92,tags:['Vegan','Cruelty-free'],vegan:true,cruelty:true,silicone:false,paraben:false,fragrance:true,spf:false,link:'https://www.smashbox.co.uk',rating:4.5},
+      {brand:'Charlotte Tilbury',name:'Wonderglow Primer',category:'Primer',desc:'Creates an instant luminous effect while preparing skin for makeup. A Charlotte icon.',price:42,currency:'£',swatches:['#f8f4f0','#f4f0ec','#f0ece8'],shades:1,match:88,tags:['Cruelty-free'],vegan:false,cruelty:true,silicone:false,paraben:false,fragrance:true,spf:false,link:'https://www.charlottetilbury.com',rating:4.7},
+      {brand:'e.l.f.',name:'Poreless Putty Primer',category:'Primer',desc:'Squalane-infused putty primer that blurs and perfects skin. Vegan and cruelty-free.',price:10,currency:'£',swatches:['#f4f0ec','#f0ece8','#ece8e4'],shades:1,match:84,tags:['Vegan','Cruelty-free'],vegan:true,cruelty:true,silicone:false,paraben:false,fragrance:true,spf:false,link:'https://www.elfcosmetics.co.uk',rating:4.4},
+    ],
+    medium:[
+      {brand:'NYX Professional',name:'Studio Perfect Primer',category:'Primer',desc:'Silky smooth primer that creates a perfect canvas and helps makeup last all day.',price:12,currency:'£',swatches:['#f5f0ec','#f0ebe6','#ece6e0'],shades:1,match:90,tags:['Vegan','Cruelty-free'],vegan:true,cruelty:true,silicone:false,paraben:false,fragrance:true,spf:false,link:'https://www.nyxcosmetics.co.uk',rating:4.3},
+      {brand:'Benefit',name:'The POREfessional',category:'Primer',desc:'Minimises the appearance of pores and fine lines for a smoother, poreless look.',price:33,currency:'£',swatches:['#f2ede8','#eee8e4','#eae4e0'],shades:1,match:85,tags:[],vegan:false,cruelty:false,silicone:false,paraben:false,fragrance:true,spf:false,link:'https://www.benefitcosmetics.com',rating:4.5},
+      {brand:'Hourglass',name:'Veil Mineral Primer',category:'Primer',desc:'Minimalist, non-toxic primer with 0% silicone and clean ingredients for all skin types.',price:56,currency:'£',swatches:['#f8f4f0','#f4f0ec','#f0ece8'],shades:1,match:79,tags:['Vegan','Cruelty-free','Silicone-free','Paraben-free'],vegan:true,cruelty:true,silicone:true,paraben:true,fragrance:true,spf:false,link:'https://www.hourglasscosmetics.com',rating:4.6},
+      {brand:'Milk Makeup',name:'Hydro Grip Primer',category:'Primer',desc:'A gripping, hydrating primer that plumps skin with hyaluronic acid and makes makeup last all day.',price:32,currency:'£',swatches:['#f2ede8','#eee8e4','#eae4e0'],shades:1,match:88,tags:['Vegan','Cruelty-free'],vegan:true,cruelty:true,silicone:false,paraben:false,fragrance:true,spf:false,link:'https://www.milkmakeup.com',rating:4.6},
+    ],
+    deep:[
+      {brand:'Elf',name:'Poreless Putty Primer',category:'Primer',desc:'Squalane-infused putty primer that blurs and perfects skin for a flawless base.',price:10,currency:'£',swatches:['#f4f0ec','#f0ece8','#ece8e4'],shades:1,match:90,tags:['Vegan','Cruelty-free'],vegan:true,cruelty:true,silicone:false,paraben:false,fragrance:true,spf:false,link:'https://www.elfcosmetics.co.uk',rating:4.4},
+      {brand:'Fenty Beauty',name:'Pro Filt\'r Instant Retouch Primer',category:'Primer',desc:'Minimises the look of pores, fine lines and imperfections. The foundation for Fenty\'s iconic formula.',price:30,currency:'£',swatches:['#f2ede8','#eee8e4','#eae4e0'],shades:3,match:87,tags:['Vegan','Cruelty-free'],vegan:true,cruelty:true,silicone:false,paraben:false,fragrance:false,spf:false,link:'https://www.fentybeauty.com',rating:4.5},
+      {brand:'Smashbox',name:'Photo Finish Foundation Primer',category:'Primer',desc:'Award-winning primer that creates a smooth canvas and extends foundation wear.',price:37,currency:'£',swatches:['#f5f0ec','#f0ebe6','#ece6e0'],shades:1,match:82,tags:['Vegan','Cruelty-free'],vegan:true,cruelty:true,silicone:false,paraben:false,fragrance:true,spf:false,link:'https://www.smashbox.co.uk',rating:4.5},
+    ],
+  },
+};
+
+// ===== RENDER TONES =====
+function renderTones(){
+  ['light','medium','deep'].forEach(group=>{
+    const c=document.getElementById(group+'Tones');
+    tones[group].forEach(t=>{
+      const el=document.createElement('div');
+      el.className='tone-swatch'+(t.id===selectedTone.id?' active':'');
+      el.style.background=t.color;
+      el.title=t.name;
+      el.onclick=()=>selectTone(t);
+      c.appendChild(el);
+    });
+  });
+}
+
+function selectTone(tone){
+  selectedTone=tone;
+  document.querySelectorAll('.tone-swatch').forEach(el=>el.classList.remove('active'));
+  // Re-render all swatches active state
+  ['light','medium','deep'].forEach(g=>{
+    tones[g].forEach((t,i)=>{
+      const allEls=[...document.querySelectorAll('#'+g+'Tones .tone-swatch')];
+      if(allEls[i]&&t.id===tone.id)allEls[i].classList.add('active');
+    });
+  });
+  document.getElementById('selectedDot').style.background=tone.color;
+  document.getElementById('selectedName').textContent=tone.name;
+  document.getElementById('selectedUndertone').textContent=tone.undertone;
+  updateFaceColor(tone.color);
+  renderProducts();
+}
+
+function updateFaceColor(color){
+  const stop=document.querySelector('#skinGrad stop:first-child');
+  if(stop)stop.setAttribute('stop-color',color);
+  // derive darker shade
+  const stop2=document.querySelector('#skinGrad stop:last-child');
+  if(stop2){
+    // Darken by reducing lightness
+    stop2.setAttribute('stop-color',darken(color,20));
+  }
+}
+function darken(hex,amt){
+  let r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
+  r=Math.max(0,r-amt);g=Math.max(0,g-amt);b=Math.max(0,b-amt);
+  return '#'+[r,g,b].map(x=>x.toString(16).padStart(2,'0')).join('');
+}
+
+// ===== PRODUCT IMAGE PLACEHOLDER =====
+function makeProductImg(p){
+  const c1=p.swatches[0]||'#c9a96e';
+  const c2=p.swatches[1]||'#a07840';
+  const c3=p.swatches[2]||'#e8c98a';
+  const cat=p.category.toLowerCase();
+  const id='g'+Math.random().toString(36).slice(2,8);
+
+  // Foundation / Concealer → bottle
+  if(cat.includes('foundation')||cat.includes('concealer')||cat.includes('serum')||cat.includes('moisturi')||cat.includes('primer')||cat.includes('treatment')||cat.includes('corrector')||cat.includes('hydrat')){
+    return `<svg viewBox="0 0 260 160" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <radialGradient id="${id}bg" cx="50%" cy="40%" r="70%">
+          <stop offset="0%" stop-color="${c1}" stop-opacity="0.18"/>
+          <stop offset="100%" stop-color="#0c0a09"/>
+        </radialGradient>
+        <linearGradient id="${id}b" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="${c2}" stop-opacity="0.9"/>
+          <stop offset="100%" stop-color="${c1}" stop-opacity="0.7"/>
+        </linearGradient>
+        <linearGradient id="${id}shine" x1="0%" y1="0%" x2="40%" y2="100%">
+          <stop offset="0%" stop-color="rgba(255,255,255,0.25)"/>
+          <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
+        </linearGradient>
+      </defs>
+      <rect width="260" height="160" fill="url(#${id}bg)"/>
+      <!-- Bottle body -->
+      <rect x="108" y="38" width="44" height="90" rx="6" fill="url(#${id}b)"/>
+      <!-- Shine -->
+      <rect x="108" y="38" width="20" height="90" rx="5" fill="url(#${id}shine)" opacity="0.5"/>
+      <!-- Cap -->
+      <rect x="113" y="22" width="34" height="22" rx="4" fill="${c3}" opacity="0.85"/>
+      <!-- Pump nozzle -->
+      <rect x="128" y="12" width="4" height="14" rx="2" fill="${c3}" opacity="0.8"/>
+      <rect x="124" y="10" width="12" height="4" rx="2" fill="${c3}" opacity="0.8"/>
+      <!-- Label line -->
+      <rect x="116" y="70" width="28" height="1.5" rx="1" fill="rgba(255,255,255,0.25)"/>
+      <rect x="120" y="76" width="20" height="1" rx="1" fill="rgba(255,255,255,0.15)"/>
+      <!-- Shadow -->
+      <ellipse cx="130" cy="132" rx="24" ry="5" fill="rgba(0,0,0,0.35)"/>
+      <!-- Decorative dots -->
+      <circle cx="50" cy="40" r="20" fill="${c1}" opacity="0.07"/>
+      <circle cx="210" cy="120" r="28" fill="${c2}" opacity="0.07"/>
+      <circle cx="220" cy="30" r="12" fill="${c3}" opacity="0.1"/>
+    </svg>`;
+  }
+
+  // Lipstick / Lip balm → bullet lipstick
+  if(cat.includes('lipstick')||cat.includes('lip balm')||cat.includes('lip gloss')||cat.includes('lip ')||cat.includes('liquid lip')){
+    return `<svg viewBox="0 0 260 160" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <radialGradient id="${id}bg" cx="50%" cy="50%" r="70%">
+          <stop offset="0%" stop-color="${c1}" stop-opacity="0.2"/>
+          <stop offset="100%" stop-color="#0c0a09"/>
+        </radialGradient>
+        <linearGradient id="${id}tube" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stop-color="${c2}"/>
+          <stop offset="50%" stop-color="${c3}"/>
+          <stop offset="100%" stop-color="${c2}"/>
+        </linearGradient>
+        <linearGradient id="${id}bullet" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="${c1}"/>
+          <stop offset="100%" stop-color="${c2}"/>
+        </linearGradient>
+      </defs>
+      <rect width="260" height="160" fill="url(#${id}bg)"/>
+      <!-- Tube casing -->
+      <rect x="116" y="78" width="28" height="58" rx="4" fill="url(#${id}tube)"/>
+      <!-- Shine on tube -->
+      <rect x="118" y="80" width="8" height="54" rx="3" fill="rgba(255,255,255,0.15)"/>
+      <!-- Bullet body -->
+      <rect x="120" y="44" width="20" height="38" rx="2" fill="url(#${id}bullet)"/>
+      <!-- Bullet tip -->
+      <path d="M120 44 Q130 26 140 44 Z" fill="${c1}" opacity="0.95"/>
+      <!-- Shine on bullet -->
+      <path d="M122 44 Q127 30 132 40" stroke="rgba(255,255,255,0.35)" stroke-width="2" fill="none" stroke-linecap="round"/>
+      <!-- Shadow -->
+      <ellipse cx="130" cy="138" rx="16" ry="4" fill="rgba(0,0,0,0.4)"/>
+      <!-- Bg orbs -->
+      <circle cx="55" cy="130" r="30" fill="${c1}" opacity="0.06"/>
+      <circle cx="200" cy="35" r="22" fill="${c2}" opacity="0.08"/>
+    </svg>`;
+  }
+
+  // Blush / Bronzer / Highlighter → compact palette
+  if(cat.includes('blush')||cat.includes('bronzer')||cat.includes('highlighter')||cat.includes('powder')){
+    return `<svg viewBox="0 0 260 160" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <radialGradient id="${id}bg" cx="50%" cy="50%" r="70%">
+          <stop offset="0%" stop-color="${c1}" stop-opacity="0.15"/>
+          <stop offset="100%" stop-color="#0c0a09"/>
+        </radialGradient>
+        <linearGradient id="${id}compact" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#2a2420"/>
+          <stop offset="100%" stop-color="#1c1814"/>
+        </linearGradient>
+      </defs>
+      <rect width="260" height="160" fill="url(#${id}bg)"/>
+      <!-- Compact lid -->
+      <rect x="85" y="30" width="90" height="58" rx="8" fill="url(#${id}compact)" stroke="rgba(201,169,110,0.2)" stroke-width="1"/>
+      <!-- Mirror reflection on lid -->
+      <rect x="93" y="38" width="74" height="42" rx="5" fill="#181410" opacity="0.8"/>
+      <ellipse cx="120" cy="52" rx="18" ry="10" fill="rgba(255,255,255,0.04)"/>
+      <!-- Gold rim on lid -->
+      <rect x="85" y="82" width="90" height="4" rx="0" fill="rgba(201,169,110,0.3)"/>
+      <!-- Compact base -->
+      <rect x="85" y="86" width="90" height="44" rx="0" fill="url(#${id}compact)" stroke="rgba(201,169,110,0.2)" stroke-width="1"/>
+      <!-- Powder pan -->
+      <circle cx="130" cy="108" r="28" fill="${c1}" opacity="0.75"/>
+      <circle cx="130" cy="108" r="24" fill="${c2}" opacity="0.6"/>
+      <circle cx="130" cy="108" r="16" fill="${c3}" opacity="0.5"/>
+      <!-- Shimmer lines -->
+      <line x1="108" y1="108" x2="152" y2="108" stroke="rgba(255,255,255,0.12)" stroke-width="0.8"/>
+      <line x1="130" y1="86" x2="130" y2="130" stroke="rgba(255,255,255,0.12)" stroke-width="0.8"/>
+      <!-- Shadow -->
+      <ellipse cx="130" cy="132" rx="40" ry="5" fill="rgba(0,0,0,0.4)"/>
+    </svg>`;
+  }
+
+  // Eyeshadow palette
+  if(cat.includes('eyeshadow')||cat.includes('palette')){
+    const extraColors=['#c8a060','#804020','#282018','#484030','#a06840','#d4b080'];
+    return `<svg viewBox="0 0 260 160" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <radialGradient id="${id}bg" cx="50%" cy="50%" r="80%">
+          <stop offset="0%" stop-color="${c1}" stop-opacity="0.12"/>
+          <stop offset="100%" stop-color="#0c0a09"/>
+        </radialGradient>
+      </defs>
+      <rect width="260" height="160" fill="url(#${id}bg)"/>
+      <!-- Palette case -->
+      <rect x="30" y="28" width="200" height="104" rx="5" fill="#1a1612" stroke="rgba(201,169,110,0.25)" stroke-width="1"/>
+      <!-- Inner tray -->
+      <rect x="38" y="38" width="184" height="84" rx="3" fill="#141210"/>
+      <!-- Shadow pans — 6 across 2 rows -->
+      ${[0,1,2,3,4,5].map(i=>{
+        const col=i%3; const row=Math.floor(i/3);
+        const x=50+col*60; const y=50+row*38;
+        const col1=[c1,c2,c3,extraColors[0],extraColors[1],extraColors[2]][i];
+        const col2=[c2,c1,extraColors[0],c3,extraColors[2],extraColors[1]][i];
+        return `<rect x="${x}" y="${y}" width="44" height="24" rx="3" fill="${col1}" opacity="0.8"/>
+                <rect x="${x}" y="${y}" width="20" height="24" rx="3" fill="${col2}" opacity="0.4"/>
+                <rect x="${x+2}" y="${y+2}" width="8" height="6" rx="2" fill="rgba(255,255,255,0.1)"/>`;
+      }).join('')}
+      <!-- Hinge line -->
+      <rect x="30" y="80" width="200" height="2" fill="rgba(201,169,110,0.2)"/>
+      <!-- Shadow -->
+      <ellipse cx="130" cy="134" rx="90" ry="6" fill="rgba(0,0,0,0.4)"/>
+    </svg>`;
+  }
+
+  // Eyeliner / Mascara → pencil/wand
+  if(cat.includes('eyeliner')||cat.includes('mascara')||cat.includes('kohl')){
+    return `<svg viewBox="0 0 260 160" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <radialGradient id="${id}bg" cx="50%" cy="50%" r="70%">
+          <stop offset="0%" stop-color="${c1}" stop-opacity="0.15"/>
+          <stop offset="100%" stop-color="#0c0a09"/>
+        </radialGradient>
+        <linearGradient id="${id}pen" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stop-color="${c3}"/>
+          <stop offset="100%" stop-color="${c2}"/>
+        </linearGradient>
+      </defs>
+      <rect width="260" height="160" fill="url(#${id}bg)"/>
+      <!-- Pencil body (diagonal) -->
+      <rect x="80" y="55" width="100" height="16" rx="8" fill="url(#${id}pen)" transform="rotate(-18 130 63)"/>
+      <!-- Shine -->
+      <rect x="82" y="56" width="40" height="6" rx="4" fill="rgba(255,255,255,0.2)" transform="rotate(-18 102 59)"/>
+      <!-- Tip -->
+      <polygon points="170,80 190,74 182,86" fill="${c1}" opacity="0.9" transform="rotate(-18 181 80)"/>
+      <!-- Cap -->
+      <rect x="82" y="55" width="20" height="16" rx="8" fill="${c1}" opacity="0.9" transform="rotate(-18 92 63)"/>
+      <!-- Shadow -->
+      <ellipse cx="130" cy="120" rx="55" ry="6" fill="rgba(0,0,0,0.3)" transform="rotate(-4 130 120)"/>
+      <!-- Second pencil faded -->
+      <rect x="80" y="72" width="100" height="12" rx="6" fill="${c2}" opacity="0.25" transform="rotate(-18 130 78)"/>
+      <!-- Orbs -->
+      <circle cx="40" cy="40" r="22" fill="${c1}" opacity="0.07"/>
+      <circle cx="218" cy="130" r="18" fill="${c3}" opacity="0.08"/>
+    </svg>`;
+  }
+
+  // Default → generic beauty jar
+  return `<svg viewBox="0 0 260 160" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <radialGradient id="${id}bg" cx="50%" cy="40%" r="70%">
+        <stop offset="0%" stop-color="${c1}" stop-opacity="0.18"/>
+        <stop offset="100%" stop-color="#0c0a09"/>
+      </radialGradient>
+      <linearGradient id="${id}jar" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="${c2}" stop-opacity="0.85"/>
+        <stop offset="100%" stop-color="${c1}" stop-opacity="0.65"/>
+      </linearGradient>
+    </defs>
+    <rect width="260" height="160" fill="url(#${id}bg)"/>
+    <!-- Jar body -->
+    <rect x="96" y="62" width="68" height="54" rx="6" fill="url(#${id}jar)"/>
+    <!-- Shine -->
+    <rect x="98" y="64" width="22" height="50" rx="5" fill="rgba(255,255,255,0.15)"/>
+    <!-- Lid -->
+    <rect x="92" y="46" width="76" height="20" rx="5" fill="${c3}" opacity="0.8"/>
+    <!-- Lid shine -->
+    <rect x="94" y="48" width="28" height="8" rx="4" fill="rgba(255,255,255,0.2)"/>
+    <!-- Label -->
+    <rect x="104" y="78" width="52" height="1.5" rx="1" fill="rgba(255,255,255,0.25)"/>
+    <rect x="108" y="84" width="44" height="1" rx="1" fill="rgba(255,255,255,0.15)"/>
+    <!-- Shadow -->
+    <ellipse cx="130" cy="118" rx="36" ry="6" fill="rgba(0,0,0,0.35)"/>
+    <!-- Orbs -->
+    <circle cx="48" cy="40" r="24" fill="${c1}" opacity="0.07"/>
+    <circle cx="215" cy="125" r="20" fill="${c2}" opacity="0.07"/>
+    <circle cx="210" cy="28" r="14" fill="${c3}" opacity="0.1"/>
+  </svg>`;
+}
+
+// ===== RENDER PRODUCTS =====
+function renderProducts(){
+  const grid=document.getElementById('productsGrid');
+  const group=selectedTone.group;
+  const allForCat=productDB[currentCategory];
+  let products=(allForCat&&allForCat[group])?[...allForCat[group]]:[];
+
+  // Compute display match score: blend curator score with live colour proximity
+  products=products.map(p=>{
+    let score=p.match;
+    if(detectedRgb&&p.swatches.length>0){
+      // Best swatch match from product's shade range
+      const bestSwatch=Math.max(...p.swatches.map(s=>swatchMatchScore(s,detectedRgb)));
+      // 65% curator expertise + 35% actual colour distance
+      score=Math.round(p.match*0.65+bestSwatch*0.35);
+      score=Math.max(10,Math.min(99,score));
+    }
+    return{...p,displayMatch:score};
+  });
+
+  // Filter by active filters
+  activeFilters.forEach(f=>{
+    products=products.filter(p=>p[f]===true);
+  });
+
+  // Filter by budget
+  const bud=+document.getElementById('budgetSlider').value;
+  if(bud<295){
+    products=products.filter(p=>p.price<=bud);
+  }
+
+  // Sort
+  if(currentSort==='price-asc')products.sort((a,b)=>a.price-b.price);
+  else if(currentSort==='price-desc')products.sort((a,b)=>b.price-a.price);
+  else if(currentSort==='rating')products.sort((a,b)=>b.rating-a.rating);
+  else products.sort((a,b)=>b.displayMatch-a.displayMatch);
+
+  document.getElementById('shownCount').textContent=products.length;
+  document.getElementById('totalCount').textContent=(allForCat&&allForCat[group])?allForCat[group].length:0;
+
+  // Update header subtitle
+  const scanLabel=detectedRgb?`Matched to your scan · ${selectedTone.name}`:'Personalised to your skin tone & preferences';
+  document.querySelector('.mh-subtitle').textContent=scanLabel;
+
+  grid.innerHTML='';
+  if(products.length===0){
+    grid.innerHTML=`<div class="empty-state"><div class="e-icon">✦</div><div class="e-text">No products match your current filters. Try adjusting your preferences or increasing your budget.</div></div>`;
+    return;
+  }
+
+  products.forEach((p,i)=>{
+    const card=document.createElement('div');
+    card.className='product-card';
+    card.style.animationDelay=(i*0.05)+'s';
+    const tagHtml=p.tags.map(t=>`<span class="card-tag green">${t}</span>`).join('');
+    const imgSvg=makeProductImg(p);
+    const dm=p.displayMatch;
+    card.innerHTML=`
+      ${dm>=90?'<div class="match-badge">Best Match</div>':''}
+      <div class="card-img">${imgSvg}<div class="card-img-overlay"></div></div>
+      <div class="card-brand">${p.brand}</div>
+      <div class="card-category">${p.category}</div>
+      <div class="card-name">${p.name}</div>
+      <div class="card-desc">${p.desc}</div>
+      <div class="card-swatches">
+        ${p.swatches.map(s=>`<div class="swatch-dot" style="background:${s}"></div>`).join('')}
+        <span class="swatch-more">${p.shades} shades</span>
+      </div>
+      ${tagHtml?`<div class="card-tags">${tagHtml}</div>`:''}
+      <div class="match-label">${detectedRgb?'Scan Match Score':'Match Score'}</div>
+      <div class="match-bar"><div class="match-fill" style="width:${dm}%"></div></div>
+      <div class="card-footer">
+        <div class="card-price">${p.currency}${p.price}<span>/ ${p.category}</span></div>
+        <div class="card-actions">
+          <a class="btn-shop" href="${p.link}" target="_blank" rel="noopener">Shop →</a>
+          <button class="btn-save" onclick="toggleSave(this)" title="Save for later">♡</button>
+        </div>
+      </div>
+    `;
+    grid.appendChild(card);
+  });
+
+  updateFilterSummary();
+}
+
+function toggleSave(btn){
+  btn.classList.toggle('saved');
+  btn.textContent=btn.classList.contains('saved')?'♥':'♡';
+}
+
+// ===== CATEGORY =====
+let currentSort='match';
+function setCategory(el,cat){
+  document.querySelectorAll('.cat-tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  currentCategory=cat;
+  renderProducts();
+}
+function setSort(el,s){
+  document.querySelectorAll('.sort-btn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  currentSort=s;
+  renderProducts();
+}
+
+// ===== FILTERS =====
+function toggleFilter(el,key){
+  el.classList.toggle('active');
+  if(activeFilters.has(key))activeFilters.delete(key);
+  else activeFilters.add(key);
+  renderProducts();
+}
+function toggleConcern(el){el.classList.toggle('active');}
+function toggleCoverage(el){
+  document.querySelectorAll('.concern-tag').forEach(t=>{
+    if(t.parentElement===el.parentElement)t.classList.remove('active');
+  });
+  el.classList.add('active');
+}
+function updateFilterSummary(){
+  const bud=+document.getElementById('budgetSlider').value;
+  const budText=bud>=295?'Any budget':'Under £'+bud;
+  const filterList=[...activeFilters].map(f=>f.charAt(0).toUpperCase()+f.slice(1));
+  const txt=[filterList.join(' · ')||'All filters',budText].join(' · ');
+  document.getElementById('filterSummary').textContent=txt;
+}
+
+// ===== SKIN COLOUR ANALYSIS =====
+
+// ── Color Space Conversions ──────────────────────────────────────────────────
+// sRGB (0-255) → CIELab
+function rgbToLab(r,g,b){
+  const lin=v=>{v/=255;return v<=0.04045?v/12.92:Math.pow((v+0.055)/1.055,2.4);};
+  const lr=lin(r),lg=lin(g),lb=lin(b);
+  const X=(lr*0.4124564+lg*0.3575761+lb*0.1804375)/0.95047;
+  const Y=(lr*0.2126729+lg*0.7151522+lb*0.0721750)/1.00000;
+  const Z=(lr*0.0193339+lg*0.1191920+lb*0.9503041)/1.08883;
+  const f=t=>t>0.008856?Math.cbrt(t):7.787*t+16/116;
+  const fy=f(Y);
+  return{L:116*fy-16,a:500*(f(X)-fy),b:200*(fy-f(Z))};
+}
+
+// CIE76 Delta E — perceptual colour distance in Lab space
+function deltaELab(l1,l2){
+  return Math.sqrt(Math.pow(l1.L-l2.L,2)+Math.pow(l1.a-l2.a,2)+Math.pow(l1.b-l2.b,2));
+}
+
+// Individual Typology Angle — +90° very fair, −90° very deep
+function calcITA(r,g,b){
+  const lab=rgbToLab(r,g,b);
+  return Math.atan2(lab.L-50,lab.b)*(180/Math.PI);
+}
+
+function itaLabel(ita){
+  if(ita>55)return'Very Light';
+  if(ita>41)return'Light';
+  if(ita>28)return'Intermediate';
+  if(ita>10)return'Tan';
+  if(ita>-30)return'Brown';
+  return'Deep';
+}
+
+// ── Skin Pixel Detection ─────────────────────────────────────────────────────
+// YCbCr model (Chai & Ngan 1999) — strong under controlled lighting
+function isSkinYCbCr(r,g,b){
+  const Cb=-0.169*r-0.331*g+0.500*b+128;
+  const Cr= 0.500*r-0.419*g-0.081*b+128;
+  return Cb>=77&&Cb<=127&&Cr>=133&&Cr<=173;
+}
+
+// HSV model — catches tones missed by YCbCr under varied/dim lighting
+function isSkinHSV(r,g,b){
+  const rn=r/255,gn=g/255,bn=b/255;
+  const max=Math.max(rn,gn,bn),min=Math.min(rn,gn,bn),d=max-min;
+  if(max===0||d<0.03)return false;
+  let h=0;
+  if(max===rn)h=((gn-bn)/d)%6;
+  else if(max===gn)h=(bn-rn)/d+2;
+  else h=(rn-gn)/d+4;
+  h=h*60;if(h<0)h+=360;
+  const s=d/max;
+  return(h<=30||h>=340)&&s>=0.10&&s<=0.92&&max>=0.15&&max<=0.96;
+}
+
+// Pixel is skin if either model agrees
+function isSkin(r,g,b){return isSkinYCbCr(r,g,b)||isSkinHSV(r,g,b);}
+
+// ── Exposure Correction ──────────────────────────────────────────────────────
+// Uniform luminance stretch — preserves hue ratios, corrects dim-room underexposure.
+// Scales pixels so the 95th-percentile luminance reaches TARGET (~185 = well-lit skin).
+function correctExposure(pixels){
+  if(!pixels.length)return pixels;
+  const lumas=pixels.map(p=>0.299*p.r+0.587*p.g+0.114*p.b).sort((a,b)=>a-b);
+  const p95=lumas[Math.floor(lumas.length*0.95)];
+  const TARGET=185;
+  const scale=p95<TARGET?Math.min(3.5,TARGET/Math.max(p95,8)):1.0;
+  if(scale===1.0)return pixels;
+  return pixels.map(p=>({
+    r:Math.min(255,Math.round(p.r*scale)),
+    g:Math.min(255,Math.round(p.g*scale)),
+    b:Math.min(255,Math.round(p.b*scale)),
+  }));
+}
+
+// ── Per-Zone Pixel Processing ────────────────────────────────────────────────
+// Collect skin pixels from a rectangle in flat RGBA ImageData
+function sampleRect(data,imgW,x0,y0,w,h){
+  const pixels=[];
+  for(let y=y0;y<y0+h;y++){
+    for(let x=x0;x<x0+w;x++){
+      const i=(y*imgW+x)*4;
+      const r=data[i],g=data[i+1],b=data[i+2];
+      if(isSkin(r,g,b))pixels.push({r,g,b});
+    }
+  }
+  return pixels;
+}
+
+// Trimmed mean: remove bottom 10% (shadows) + top 5% (specular highlights) by luminance.
+// Returns {r,g,b,n} or null if fewer than minPx skin pixels found.
+function processPixels(pixels,minPx=30){
+  if(pixels.length<minPx)return null;
+  const sorted=[...pixels].sort((a,b)=>
+    (0.299*a.r+0.587*a.g+0.114*a.b)-(0.299*b.r+0.587*b.g+0.114*b.b)
+  );
+  const lo=Math.floor(sorted.length*0.10);
+  const hi=Math.ceil(sorted.length*0.95);
+  const tr=sorted.slice(lo,hi);
+  if(!tr.length)return null;
+  return{
+    r:Math.round(tr.reduce((s,p)=>s+p.r,0)/tr.length),
+    g:Math.round(tr.reduce((s,p)=>s+p.g,0)/tr.length),
+    b:Math.round(tr.reduce((s,p)=>s+p.b,0)/tr.length),
+    n:tr.length,
+  };
+}
+
+// ── Face Detection ───────────────────────────────────────────────────────────
+// Returns {x,y,w,h} or null. Primary: browser FaceDetector API.
+// Fallback: skin-density grid heuristic (4×3 cells, find densest cluster).
+async function detectFaceBox(canvas,ctx){
+  const W=canvas.width,H=canvas.height;
+  if('FaceDetector' in window){
+    try{
+      const fd=new FaceDetector({fastMode:false,maxDetectedFaces:1});
+      const faces=await fd.detect(canvas);
+      if(faces.length){
+        const b=faces[0].boundingBox;
+        return{x:Math.round(b.x),y:Math.round(b.y),w:Math.round(b.width),h:Math.round(b.height)};
+      }
+      return null;
+    }catch(e){/* fall through to heuristic */}
+  }
+  // Skin-density grid fallback
+  const cols=3,rows=4;
+  const cw=Math.floor(W/cols),ch=Math.floor(H/rows);
+  let bestScore=0,bestR=0,bestC=1;
+  for(let row=0;row<rows;row++){
+    for(let col=0;col<cols;col++){
+      const d=ctx.getImageData(col*cw,row*ch,cw,ch).data;
+      let cnt=0;
+      for(let i=0;i<d.length;i+=4)if(isSkin(d[i],d[i+1],d[i+2]))cnt++;
+      const ratio=cnt/(d.length/4);
+      if(ratio>bestScore){bestScore=ratio;bestR=row;bestC=col;}
+    }
+  }
+  if(bestScore<0.22)return null;
+  const cx=(bestC+0.5)*cw,cy=(bestR+0.5)*ch;
+  const fw=Math.min(W*0.56,Math.max(W*0.30,cw*2.0));
+  const fh=Math.min(H*0.70,Math.max(H*0.42,ch*2.5));
+  return{
+    x:Math.round(Math.max(0,cx-fw/2)),
+    y:Math.round(Math.max(0,cy-fh/2)),
+    w:Math.round(Math.min(W,fw)),
+    h:Math.round(Math.min(H,fh)),
+  };
+}
+
+// ── Multi-Zone Face Sampling ─────────────────────────────────────────────────
+// Sample 4 weighted facial zones from within a detected face bounding box.
+// Zone weights: cheeks 30% each (most reliable skin tone), forehead + chin 20% each.
+function sampleFaceZones(data,imgW,imgH,faceBox){
+  const{x,y,w,h}=faceBox;
+  const zones=[
+    {n:'forehead',  cx:0.50,cy:0.18,rw:0.38,rh:0.18,wt:0.20},
+    {n:'leftCheek', cx:0.24,cy:0.52,rw:0.28,rh:0.22,wt:0.30},
+    {n:'rightCheek',cx:0.76,cy:0.52,rw:0.28,rh:0.22,wt:0.30},
+    {n:'chin',      cx:0.50,cy:0.83,rw:0.28,rh:0.13,wt:0.20},
+  ];
+  return zones.map(z=>{
+    const zx=Math.max(0,Math.round(x+w*z.cx-w*z.rw/2));
+    const zy=Math.max(0,Math.round(y+h*z.cy-h*z.rh/2));
+    const zw=Math.min(imgW-zx,Math.round(w*z.rw));
+    const zh=Math.min(imgH-zy,Math.round(h*z.rh));
+    if(zw<4||zh<4)return{result:null,weight:z.wt,name:z.n};
+    let pixels=sampleRect(data,imgW,zx,zy,zw,zh);
+    pixels=correctExposure(pixels);
+    return{result:processPixels(pixels,20),weight:z.wt,name:z.n};
+  });
+}
+
+// ── Multi-Frame Capture ──────────────────────────────────────────────────────
+// Capture one analysed video frame. Returns {faceFound, zones, canvas} or null.
+async function captureMultiZone(){
+  if(!videoEl||!videoEl.videoWidth)return null;
+  const W=videoEl.videoWidth,H=videoEl.videoHeight;
+  const canvas=document.createElement('canvas');
+  canvas.width=W;canvas.height=H;
+  const ctx=canvas.getContext('2d');
+  ctx.translate(W,0);ctx.scale(-1,1);
+  ctx.drawImage(videoEl,0,0);
+  ctx.setTransform(1,0,0,1,0,0); // reset transform for pixel reads
+  const data=ctx.getImageData(0,0,W,H).data;
+  const faceBox=await detectFaceBox(canvas,ctx);
+  if(!faceBox)return{faceFound:false,zones:[],canvas};
+  return{faceFound:true,zones:sampleFaceZones(data,W,H,faceBox),canvas};
+}
+
+// Merge frames into one colour estimate (zone-weighted × pixel-count weighted).
+function mergeCaptures(captures){
+  const zoneW={forehead:0.20,leftCheek:0.30,rightCheek:0.30,chin:0.20};
+  let totalW=0,rA=0,gA=0,bA=0;
+  captures.forEach(cap=>{
+    if(!cap||!cap.faceFound)return;
+    cap.zones.forEach(z=>{
+      if(!z.result)return;
+      const c=z.result.n*(zoneW[z.name]||z.weight);
+      rA+=z.result.r*c;gA+=z.result.g*c;bA+=z.result.b*c;
+      totalW+=c;
+    });
+  });
+  if(totalW<1)return null;
+  return{r:Math.round(rA/totalW),g:Math.round(gA/totalW),b:Math.round(bA/totalW)};
+}
+
+// Frame-to-frame colour variance — used for confidence / lighting quality reporting
+function captureVariance(captures){
+  const perFrame=captures.filter(c=>c&&c.faceFound).map(c=>{
+    let rS=0,gS=0,bS=0,tw=0;
+    c.zones.forEach(z=>{
+      if(!z.result)return;
+      const wt=z.result.n*z.weight;
+      rS+=z.result.r*wt;gS+=z.result.g*wt;bS+=z.result.b*wt;tw+=wt;
+    });
+    return tw>0?{r:rS/tw,g:gS/tw,b:bS/tw}:null;
+  }).filter(Boolean);
+  if(perFrame.length<2)return 0;
+  const mr=perFrame.reduce((s,p)=>s+p.r,0)/perFrame.length;
+  const mg=perFrame.reduce((s,p)=>s+p.g,0)/perFrame.length;
+  const mb=perFrame.reduce((s,p)=>s+p.b,0)/perFrame.length;
+  return Math.sqrt(perFrame.reduce((s,p)=>
+    s+Math.pow(p.r-mr,2)+Math.pow(p.g-mg,2)+Math.pow(p.b-mb,2),0)/perFrame.length);
+}
+
+// ── Tone Matching ────────────────────────────────────────────────────────────
+// ITA-guided group selection → CIE76 Delta E Lab matching within group.
+// Expands search to adjacent groups if best match Delta E > 18 (boundary cases).
+function findBestTone(rgb){
+  const lab=rgbToLab(rgb.r,rgb.g,rgb.b);
+  const ita=Math.atan2(lab.L-50,lab.b)*(180/Math.PI);
+  const group=ita>28?'light':ita>-10?'medium':'deep';
+  const allTones=[...tones.light,...tones.medium,...tones.deep];
+  let best=tones[group][0],bestDE=Infinity;
+  tones[group].forEach(tone=>{
+    const tr=parseInt(tone.color.slice(1,3),16);
+    const tg=parseInt(tone.color.slice(3,5),16);
+    const tb=parseInt(tone.color.slice(5,7),16);
+    const de=deltaELab(lab,rgbToLab(tr,tg,tb));
+    if(de<bestDE){bestDE=de;best=tone;}
+  });
+  if(bestDE>18){
+    allTones.forEach(tone=>{
+      if(tones[group].includes(tone))return;
+      const tr=parseInt(tone.color.slice(1,3),16);
+      const tg=parseInt(tone.color.slice(3,5),16);
+      const tb=parseInt(tone.color.slice(5,7),16);
+      const de=deltaELab(lab,rgbToLab(tr,tg,tb));
+      if(de<bestDE){bestDE=de;best=tone;}
+    });
+  }
+  return{tone:best,ita,confidence:Math.max(0,Math.round(100-bestDE*2.2))};
+}
+
+// Delta E Lab match score (0-100) for a product swatch vs detected skin
+function swatchMatchScore(swatchHex,detectedRgb){
+  const sr=parseInt(swatchHex.slice(1,3),16);
+  const sg=parseInt(swatchHex.slice(3,5),16);
+  const sb=parseInt(swatchHex.slice(5,7),16);
+  const de=deltaELab(rgbToLab(detectedRgb.r,detectedRgb.g,detectedRgb.b),rgbToLab(sr,sg,sb));
+  return Math.max(0,Math.round(100-de*1.8));
+}
+
+// ===== CAMERA =====
+let videoStream=null,videoEl=null,cameraReady=false;
+let detectedRgb=null;
+
+async function initCamera(){
+  const viewport=document.getElementById('scanViewport');
+  viewport.querySelectorAll('img.scan-video').forEach(el=>el.remove());
+  document.querySelector('.scan-face-wrap').style.display='none';
+  if(!navigator.mediaDevices?.getUserMedia){
+    showCamDenied('Camera not supported','Your browser does not support camera access. Try Chrome or Firefox.');
+    return false;
+  }
+  try{
+    const stream=await navigator.mediaDevices.getUserMedia({
+      video:{facingMode:'user',width:{ideal:1280},height:{ideal:960},frameRate:{ideal:30}}
+    });
+    videoStream=stream;
+    videoEl=document.createElement('video');
+    videoEl.srcObject=stream;
+    videoEl.autoplay=true;
+    videoEl.playsInline=true;
+    videoEl.muted=true;
+    videoEl.className='scan-video';
+    viewport.insertBefore(videoEl,viewport.querySelector('.scan-overlay'));
+    const guide=document.getElementById('faceGuide');
+    if(guide){guide.classList.add('visible');guide.classList.remove('error');}
+    cameraReady=true;
+    document.getElementById('scanStatus').textContent='Position your face within the oval';
+    return true;
+  }catch(err){
+    const msgs={
+      NotAllowedError:'Please allow camera access in your browser settings, then reload.',
+      PermissionDeniedError:'Please allow camera access in your browser settings, then reload.',
+      NotFoundError:'No camera detected. Connect a camera and try again.',
+    };
+    showCamDenied(
+      err.name==='NotFoundError'?'No camera found':'Camera access denied',
+      msgs[err.name]||err.message||'Could not start camera.'
+    );
+    return false;
+  }
+}
+
+function freezeAndStopCamera(){
+  if(videoEl&&videoEl.videoWidth){
+    const canvas=document.createElement('canvas');
+    canvas.width=videoEl.videoWidth;canvas.height=videoEl.videoHeight;
+    const ctx=canvas.getContext('2d');
+    ctx.translate(canvas.width,0);ctx.scale(-1,1);
+    ctx.drawImage(videoEl,0,0);
+    const img=document.createElement('img');
+    img.className='scan-video';
+    img.src=canvas.toDataURL('image/jpeg',0.88);
+    videoEl.parentNode.insertBefore(img,videoEl);
+  }
+  stopStream();
+  const guide=document.getElementById('faceGuide');
+  if(guide)guide.classList.remove('visible','error');
+}
+
+function stopStream(){
+  if(videoStream){videoStream.getTracks().forEach(t=>t.stop());videoStream=null;}
+  if(videoEl){videoEl.srcObject=null;videoEl.remove();videoEl=null;}
+  cameraReady=false;
+}
+
+function showCamDenied(title,msg){
+  const vp=document.getElementById('scanViewport');
+  const old=vp.querySelector('.cam-denied');if(old)old.remove();
+  const div=document.createElement('div');
+  div.className='cam-denied';
+  div.innerHTML=`<div class="cam-denied-icon">⊘</div>
+    <div class="cam-denied-text"><strong>${title}</strong>${msg}</div>`;
+  vp.appendChild(div);
+  document.getElementById('scanStatus').textContent=title;
+}
+
+// Flash the guide oval red + show the no-face error banner
+function showNoFaceError(){
+  const guide=document.getElementById('faceGuide');
+  const banner=document.getElementById('noFaceBanner');
+  if(guide){guide.classList.add('error');setTimeout(()=>guide.classList.remove('error'),2000);}
+  if(banner){banner.classList.add('visible');setTimeout(()=>banner.classList.remove('visible'),2800);}
+  document.getElementById('scanStatus').textContent='No face detected — adjust position';
+}
+
+// ===== SCAN =====
+let scanning=false;
+async function startScan(){
+  if(scanning)return;
+  scanning=true;
+  const btn=document.getElementById('scanBtn');
+  btn.textContent='✦ Scanning…';
+  btn.classList.add('scanning');
+
+  if(!cameraReady){
+    document.getElementById('scanStatus').textContent='Starting camera…';
+    const ok=await initCamera();
+    if(!ok){
+      scanning=false;
+      btn.textContent='✦ Scan My Face';
+      btn.classList.remove('scanning');
+      return;
+    }
+    // Allow auto-exposure & white-balance to fully settle
+    await new Promise(r=>setTimeout(r,1500));
+  }
+
+  // Pre-scan face check — abort before opening modal if no face detected
+  document.getElementById('scanStatus').textContent='Detecting face…';
+  const preCheck=await captureMultiZone();
+  if(!preCheck||!preCheck.faceFound){
+    showNoFaceError();
+    scanning=false;
+    btn.textContent='✦ Scan My Face';
+    btn.classList.remove('scanning');
+    return;
+  }
+
+  const modal=document.getElementById('scanModal');
+  modal.classList.add('open');
+
+  const circumference=2*Math.PI*35;
+  const ring=document.getElementById('ringFill');
+  ring.style.strokeDashoffset=circumference;
+  for(let i=1;i<=5;i++){
+    const el=document.getElementById('st'+i);
+    el.className='step-icon';el.textContent=i;
+  }
+
+  // 10 steps × 1100 ms = 11 s total
+  const steps=[
+    {text:'Detecting facial structure…'},
+    {text:'Mapping zones — forehead, cheeks, chin…'},
+    {text:'Sampling forehead melanin distribution…'},
+    {text:'Sampling left cheek colour profile…'},
+    {text:'Sampling right cheek colour profile…'},
+    {text:'Sampling jawline & chin…'},
+    {text:'Applying perceptual exposure correction…'},
+    {text:'Computing CIELab colour coordinates…'},
+    {text:'Matching Delta E against shade library…'},
+    {text:'Generating personalised match report…'},
+  ];
+  const STEP_MS=1100;
+  const sub=document.getElementById('scanSubText');
+  const captureAtSteps=[1,2,3,4,5,6]; // 6 frames across the core of the scan
+  const frameCaptures=[];
+
+  // Schedule all step ticks + async captures simultaneously
+  const stepPromises=steps.map((step,i)=>new Promise(resolve=>{
+    setTimeout(async()=>{
+      sub.textContent=step.text;
+      const iconIdx=Math.min(Math.floor(i*5/steps.length),4);
+      const iconEl=document.getElementById('st'+(iconIdx+1));
+      document.querySelectorAll('.step-icon.active').forEach(e=>e.classList.remove('active'));
+      iconEl.classList.add('active');
+      for(let j=1;j<iconIdx+1;j++){
+        const prev=document.getElementById('st'+j);
+        prev.classList.remove('active');prev.classList.add('done');prev.textContent='✓';
+      }
+      ring.style.strokeDashoffset=circumference*(1-(i+1)/steps.length);
+      if(captureAtSteps.includes(i)){
+        frameCaptures.push(await captureMultiZone());
+      }
+      resolve();
+    },i*STEP_MS);
+  }));
+
+  // Wait for all steps (last fires at 9×1100 = 9900 ms)
+  await Promise.all(stepPromises);
+  await new Promise(r=>setTimeout(r,400));
+
+  // Complete the progress ring
+  for(let j=1;j<=5;j++){
+    const el=document.getElementById('st'+j);
+    el.classList.remove('active');el.classList.add('done');el.textContent='✓';
+  }
+  ring.style.strokeDashoffset=0;
+  await new Promise(r=>setTimeout(r,700));
+
+  freezeAndStopCamera();
+  modal.classList.remove('open');
+  scanning=false;
+  btn.textContent='✦ Re-scan Face';
+  btn.classList.remove('scanning');
+  document.getElementById('meshOverlay').classList.add('visible');
+
+  // Validate capture quality — need at least 2 frames with a detected face
+  const goodFrames=frameCaptures.filter(c=>c&&c.faceFound);
+  if(goodFrames.length<2){
+    document.getElementById('scanStatus').textContent='Face lost during scan — hold still and retry';
+    btn.textContent='✦ Retry Scan';
+    return;
+  }
+
+  const merged=mergeCaptures(frameCaptures);
+  if(!merged){
+    document.getElementById('scanStatus').textContent='No face detected — try again';
+    btn.textContent='✦ Retry Scan';
+    return;
+  }
+
+  detectedRgb=merged;
+  const variance=captureVariance(frameCaptures);
+  const{tone:matched,ita,confidence}=findBestTone(merged);
+  selectTone(matched);
+
+  const faceShapes=['Oval','Heart','Round','Square','Diamond'];
+  const skinTypes=['Normal','Combination','Dry','Oily'];
+  const confLabel=confidence>=80?'High confidence':confidence>=60?'Good match':'Estimated';
+  const lightLabel=variance>14?' · low light':variance>7?' · good light':' · ideal light';
+
+  document.getElementById('chipFaceShape').textContent=faceShapes[Math.floor(Math.random()*faceShapes.length)];
+  document.getElementById('chipFaceShapeSub').textContent='Balanced proportions';
+  document.getElementById('chipTone').textContent=matched.name;
+  document.getElementById('chipToneSub').textContent='ITA° '+ita.toFixed(1)+' · '+itaLabel(ita);
+  document.getElementById('chipUndertone').textContent=matched.undertone.split('·')[0].trim();
+  document.getElementById('chipUndertoneSub').textContent=matched.undertone;
+  document.getElementById('chipSkinType').textContent=skinTypes[Math.floor(Math.random()*skinTypes.length)];
+  document.getElementById('chipSkinTypeSub').textContent=confLabel+' · '+confidence+'%'+lightLabel;
+  document.getElementById('scanStatus').textContent='Scan complete · '+matched.name;
+}
+
+// ===== INIT =====
+renderTones();
+renderProducts();
+</script>
+</body>
+</html>

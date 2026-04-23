@@ -1,0 +1,3966 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>LUMA — AI Beauty Scanner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="preconnect" href="https://unpkg.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400;1,500;1,600&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+<style>/* ============================================================
+   LUMA — Colors & Type
+   AI face-scanning beauty matchmaker.
+   Visual DNA: a horizontal gradient from a soft sky blue on the
+   left to a deep midnight blue on the right. Text is warm white.
+   Accent is a soft peach (the brand's "skin" warmth) to cut
+   through the cool field.
+   ============================================================ */
+
+:root {
+  /* ---------- Core blue field ---------- */
+  --blue-50:  #e7f0ff;   /* almost-white sky tint */
+  --blue-100: #c9ddff;   /* left-edge of the gradient */
+  --blue-200: #9cc0ff;
+  --blue-300: #6ea1f5;
+  --blue-400: #4a81dc;
+  --blue-500: #2f62bf;   /* brand blue */
+  --blue-600: #224aa0;
+  --blue-700: #17357a;
+  --blue-800: #0e2358;   /* right-edge of the gradient */
+  --blue-900: #07143a;   /* near-black ink */
+
+  /* ---------- Signature gradient ---------- */
+  --grad-field: linear-gradient(90deg, #c9ddff 0%, #6ea1f5 35%, #2f62bf 70%, #0e2358 100%);
+  --grad-field-soft: linear-gradient(90deg, #e7f0ff 0%, #9cc0ff 40%, #4a81dc 80%, #17357a 100%);
+  --grad-field-vertical: linear-gradient(180deg, #6ea1f5 0%, #0e2358 100%);
+  --grad-mist: radial-gradient(ellipse at 30% 30%, rgba(255,255,255,0.18), transparent 60%);
+
+  /* ---------- Neutrals / foreground ---------- */
+  --fg:        #ffffff;
+  --fg-1:      #ffffff;            /* primary text */
+  --fg-2:      rgba(255,255,255,0.78); /* secondary */
+  --fg-3:      rgba(255,255,255,0.55); /* tertiary / caption */
+  --fg-dim:    rgba(255,255,255,0.35);
+  --fg-ink:    #07143a;            /* dark text on light chips */
+
+  --line:      rgba(255,255,255,0.18);
+  --line-soft: rgba(255,255,255,0.10);
+  --line-strong: rgba(255,255,255,0.35);
+
+  /* ---------- Surfaces (translucent over gradient) ---------- */
+  --surface-1: rgba(255,255,255,0.06);   /* default card */
+  --surface-2: rgba(255,255,255,0.10);   /* hover card / raised */
+  --surface-3: rgba(255,255,255,0.14);   /* active */
+  --surface-ink: rgba(7,20,58,0.45);     /* dark wash for legibility */
+  --surface-glass: rgba(255,255,255,0.08); /* glassmorphism */
+  --blur-glass: saturate(140%) blur(24px);
+
+  /* ---------- Accents ---------- */
+  --peach:     #ffc9a8;   /* warm brand accent — opposite of blue */
+  --peach-ink: #7a3a1a;
+  --rose:      #ffb0c0;
+  --mint:      #9ef0c9;   /* success / match */
+  --amber:     #ffd98a;   /* warning / highlight */
+  --coral:     #ff8a7a;   /* error / strong accent */
+
+  /* ---------- Semantic ---------- */
+  --color-bg:        var(--grad-field);
+  --color-fg:        var(--fg-1);
+  --color-muted:     var(--fg-2);
+  --color-border:    var(--line);
+  --color-accent:    var(--peach);
+  --color-success:   var(--mint);
+  --color-warning:   var(--amber);
+  --color-danger:    var(--coral);
+  --color-link:      var(--peach);
+  --color-match:     var(--mint);
+
+  /* ---------- Type families ---------- */
+  --font-display: "Cormorant Garamond", "Didot", "Playfair Display", Georgia, serif;
+  --font-body:    "DM Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+  --font-mono:    ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+
+  /* ---------- Type scale (fluid) ---------- */
+  --fs-micro:   10px;
+  --fs-xxs:     11px;
+  --fs-xs:      12px;
+  --fs-sm:      13px;
+  --fs-md:      15px;
+  --fs-lg:      18px;
+  --fs-xl:      22px;
+  --fs-2xl:     28px;
+  --fs-3xl:     36px;
+  --fs-4xl:     48px;
+  --fs-5xl:     64px;
+  --fs-display: 88px;
+
+  /* ---------- Weights ---------- */
+  --fw-light:   300;
+  --fw-regular: 400;
+  --fw-medium:  500;
+  --fw-semi:    600;
+
+  /* ---------- Tracking ---------- */
+  --tracking-eyebrow: 0.28em;   /* uppercase labels */
+  --tracking-nav:     0.18em;
+  --tracking-caps:    0.12em;
+  --tracking-body:    0;
+  --tracking-display: -0.02em;  /* tighten display serif */
+
+  /* ---------- Line heights ---------- */
+  --lh-tight: 1.05;
+  --lh-snug:  1.2;
+  --lh-body:  1.55;
+  --lh-loose: 1.75;
+
+  /* ---------- Radii ---------- */
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-pill: 999px;
+  --radius-circle: 50%;
+
+  /* ---------- Spacing ---------- */
+  --sp-0: 0;
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-7: 32px;
+  --sp-8: 40px;
+  --sp-9: 56px;
+  --sp-10: 72px;
+  --sp-11: 96px;
+
+  /* ---------- Shadows (tuned for dark blue field) ---------- */
+  --shadow-1: 0 1px 2px rgba(7,20,58,0.25);
+  --shadow-2: 0 4px 14px rgba(7,20,58,0.30);
+  --shadow-3: 0 12px 40px rgba(7,20,58,0.45);
+  --shadow-glow: 0 0 24px rgba(201,221,255,0.25);
+  --shadow-peach-glow: 0 0 22px rgba(255,201,168,0.35);
+  --shadow-inset-hi: inset 0 1px 0 rgba(255,255,255,0.18);
+  --shadow-inset-lo: inset 0 -1px 0 rgba(7,20,58,0.35);
+
+  /* ---------- Motion ---------- */
+  --ease-out:     cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out:  cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-spring:  cubic-bezier(0.34, 1.56, 0.64, 1);
+  --dur-fast:     140ms;
+  --dur-base:     240ms;
+  --dur-slow:     400ms;
+  --dur-stage:    700ms;
+}
+
+/* ============================================================
+   BASE RESETS
+   ============================================================ */
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: var(--font-body);
+  font-weight: var(--fw-light);
+  font-size: var(--fs-md);
+  line-height: var(--lh-body);
+  color: var(--fg-1);
+  background: var(--grad-field);
+  background-attachment: fixed;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* ============================================================
+   SEMANTIC TYPE ELEMENTS
+   Use these classes or rawtags — both map to the same tokens.
+   ============================================================ */
+
+.eyebrow, .luma-eyebrow {
+  font-family: var(--font-body);
+  font-size: var(--fs-micro);
+  font-weight: var(--fw-medium);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-eyebrow);
+  color: var(--fg-2);
+}
+
+h1, .h1, .display {
+  font-family: var(--font-display);
+  font-weight: var(--fw-light);
+  font-size: clamp(44px, 6vw, var(--fs-display));
+  line-height: var(--lh-tight);
+  letter-spacing: var(--tracking-display);
+  color: var(--fg-1);
+  margin: 0;
+}
+h1 em, .display em, .h1 em {
+  font-style: italic;
+  font-weight: var(--fw-regular);
+  color: var(--peach);
+}
+
+h2, .h2 {
+  font-family: var(--font-display);
+  font-weight: var(--fw-light);
+  font-size: clamp(32px, 4vw, var(--fs-3xl));
+  line-height: var(--lh-snug);
+  letter-spacing: var(--tracking-display);
+  color: var(--fg-1);
+  margin: 0;
+}
+
+h3, .h3 {
+  font-family: var(--font-display);
+  font-weight: var(--fw-regular);
+  font-size: var(--fs-2xl);
+  line-height: var(--lh-snug);
+  color: var(--fg-1);
+  margin: 0;
+}
+
+h4, .h4 {
+  font-family: var(--font-body);
+  font-weight: var(--fw-medium);
+  font-size: var(--fs-lg);
+  line-height: var(--lh-snug);
+  letter-spacing: 0;
+  color: var(--fg-1);
+  margin: 0;
+}
+
+h5, .h5, .overline {
+  font-family: var(--font-body);
+  font-weight: var(--fw-medium);
+  font-size: var(--fs-xs);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+  color: var(--fg-2);
+  margin: 0;
+}
+
+p, .body {
+  font-family: var(--font-body);
+  font-weight: var(--fw-light);
+  font-size: var(--fs-md);
+  line-height: var(--lh-body);
+  color: var(--fg-1);
+  text-wrap: pretty;
+  margin: 0;
+}
+
+.lede {
+  font-family: var(--font-body);
+  font-weight: var(--fw-light);
+  font-size: var(--fs-lg);
+  line-height: var(--lh-body);
+  color: var(--fg-2);
+}
+
+.caption, small {
+  font-family: var(--font-body);
+  font-size: var(--fs-xs);
+  color: var(--fg-3);
+  line-height: var(--lh-body);
+}
+
+.numeric, .price {
+  font-family: var(--font-display);
+  font-weight: var(--fw-light);
+  font-feature-settings: "lnum" 1, "tnum" 1;
+}
+
+code, pre, .mono {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+}
+
+a {
+  color: var(--color-link);
+  text-decoration: none;
+  border-bottom: 1px solid currentColor;
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+a:hover { opacity: 0.7; }
+
+/* ============================================================
+   UTILITY HELPERS
+   ============================================================ */
+
+.u-field { background: var(--grad-field); }
+.u-field-soft { background: var(--grad-field-soft); }
+.u-field-v { background: var(--grad-field-vertical); }
+.u-glass {
+  background: var(--surface-glass);
+  backdrop-filter: var(--blur-glass);
+  -webkit-backdrop-filter: var(--blur-glass);
+  border: 1px solid var(--line);
+}
+.u-serif  { font-family: var(--font-display); }
+.u-sans   { font-family: var(--font-body); }
+.u-italic { font-style: italic; }
+.u-peach  { color: var(--peach); }
+.u-mint   { color: var(--mint); }
+
+/* Divider with center light */
+.u-divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--line-strong), transparent);
+}
+</style>
+<style>
+  :root{
+    --panel-bg: rgba(255,255,255,0.05);
+    --line: rgba(255,255,255,0.16);
+    --line-soft: rgba(255,255,255,0.10);
+    --line-strong: rgba(255,255,255,0.28);
+    --surface-1: rgba(255,255,255,0.06);
+    --surface-2: rgba(255,255,255,0.12);
+    --peach: #ffc9a8;
+    --mint: #9ef0c9;
+    --ink: #07143a;
+  }
+  html,body{margin:0;padding:0;min-height:100vh;max-width:100%;overflow-x:hidden}
+  body{
+    background:linear-gradient(90deg,#c9ddff 0%,#6ea1f5 35%,#2f62bf 70%,#0e2358 100%);
+    background-attachment:fixed;
+    color:#fff;
+    font-family:var(--font-body);
+    font-weight:300;
+    -webkit-font-smoothing:antialiased;
+  }
+  body::before{
+    content:'';position:fixed;inset:0;z-index:0;pointer-events:none;opacity:0.4;
+    background-image:url("data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PScwIDAgMjU2IDI1NicgeG1sbnM9J2h0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnJz48ZmlsdGVyIGlkPSduJz48ZmVUdXJidWxlbmNlIHR5cGU9J2ZyYWN0YWxOb2lzZScgYmFzZUZyZXF1ZW5jeT0nMC45JyBudW1PY3RhdmVzPSczJyBzdGl0Y2hUaWxlcz0nc3RpdGNoJy8+PC9maWx0ZXI+PHJlY3Qgd2lkdGg9JzEwMCUnIGhlaWdodD0nMTAwJScgZmlsdGVyPSd1cmwoI24pJyBvcGFjaXR5PScwLjA1Jy8+PC9zdmc+");
+  }
+  *,*::before,*::after{box-sizing:border-box}
+
+  /* ===== NAV ===== */
+  .luma-nav{
+    position:fixed;top:0;left:0;right:0;z-index:200;
+    display:flex;align-items:center;justify-content:space-between;
+    padding:20px 48px;
+    background:rgba(7,20,58,0.35);
+    backdrop-filter:saturate(140%) blur(20px);
+    -webkit-backdrop-filter:saturate(140%) blur(20px);
+    border-bottom:1px solid var(--line);
+  }
+  .luma-logo{
+    font-family:var(--font-display);font-weight:300;font-size:26px;
+    letter-spacing:0.32em;color:#fff;text-decoration:none;border:none;
+  }
+  .luma-logo span{color:#fff;font-style:italic}
+  .luma-nav-links{display:flex;gap:32px;list-style:none;margin:0;padding:0}
+  .luma-nav-links a{
+    font-size:11px;letter-spacing:0.18em;text-transform:uppercase;
+    color:rgba(255,255,255,0.75);text-decoration:none;font-weight:400;
+    border:none;transition:color .2s;
+  }
+  .luma-nav-links a:hover{color:var(--peach);opacity:1}
+  .luma-badge{
+    background:var(--peach);color:var(--ink);
+    font-size:9px;letter-spacing:0.22em;text-transform:uppercase;
+    padding:5px 12px;font-weight:600;border-radius:999px;
+  }
+
+  /* ===== LAYOUT ===== */
+  .app{
+    display:grid;grid-template-columns:minmax(0,400px) minmax(0,1fr);
+    min-height:100vh;padding-top:68px;position:relative;z-index:1;
+    width:100%;max-width:100vw;
+  }
+  .left-panel{
+    background:rgba(7,20,58,0.22);
+    backdrop-filter:blur(14px);
+    -webkit-backdrop-filter:blur(14px);
+    border-right:1px solid var(--line);
+    height:calc(100vh - 68px);position:sticky;top:68px;overflow-y:auto;
+    scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.2) transparent;
+  }
+  .left-panel::-webkit-scrollbar{width:3px}
+  .left-panel::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15)}
+  .right-panel{padding:0}
+
+  /* ===== SECTIONS ===== */
+  .scan-area,.tone-wrap,.filters-wrap{
+    padding:28px 32px 24px;border-bottom:1px solid var(--line);
+  }
+  .section-eyebrow{
+    font-size:9px;letter-spacing:0.3em;text-transform:uppercase;
+    color:var(--peach);margin-bottom:16px;font-weight:500;
+    display:flex;align-items:center;gap:10px;
+  }
+  .section-eyebrow::before{content:'';width:22px;height:1px;background:var(--peach)}
+  .status-dot{
+    width:6px;height:6px;border-radius:50%;background:var(--mint);
+    display:inline-block;animation:pulse 2s infinite;margin-left:auto;
+  }
+  @keyframes pulse{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(158,240,201,.5)}50%{box-shadow:0 0 0 6px transparent}}
+
+  /* ===== SCAN VIEWPORT ===== */
+  .scan-viewport{
+    width:100%;aspect-ratio:3/4;
+    background:rgba(7,20,58,0.4);
+    border:1px solid var(--line);border-radius:6px;
+    position:relative;overflow:hidden;
+  }
+  .scan-dots{
+    position:absolute;inset:0;
+    background-image:radial-gradient(circle,rgba(255,255,255,.12) 1px,transparent 1px);
+    background-size:18px 18px;
+  }
+  .face-svg{
+    position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+    width:62%;height:auto;filter:drop-shadow(0 8px 28px rgba(7,20,58,.45));
+  }
+  .face-mesh{
+    position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+    width:62%;height:auto;pointer-events:none;
+    animation:fadeIn .5s ease;
+  }
+  @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+  .face-guide{
+    position:absolute;left:50%;top:44%;transform:translate(-50%,-50%);
+    width:58%;height:58%;
+    border:1.5px dashed rgba(255,201,168,0.55);
+    border-radius:50%;pointer-events:none;
+  }
+  .face-guide.pulse{animation:guidePulse 1.2s ease-in-out infinite}
+  @keyframes guidePulse{0%,100%{border-color:rgba(255,201,168,.35)}50%{border-color:rgba(255,201,168,.9)}}
+  .scan-corner{position:absolute;width:18px;height:18px}
+  .scan-corner.tl{top:12px;left:12px;border-top:1.5px solid var(--peach);border-left:1.5px solid var(--peach)}
+  .scan-corner.tr{top:12px;right:12px;border-top:1.5px solid var(--peach);border-right:1.5px solid var(--peach)}
+  .scan-corner.bl{bottom:12px;left:12px;border-bottom:1.5px solid var(--peach);border-left:1.5px solid var(--peach)}
+  .scan-corner.br{bottom:12px;right:12px;border-bottom:1.5px solid var(--peach);border-right:1.5px solid var(--peach)}
+  .scanline{
+    position:absolute;left:0;right:0;height:2px;
+    background:linear-gradient(to right,transparent,rgba(255,201,168,.85),transparent);
+    animation:sl 2.4s ease-in-out infinite;
+  }
+  @keyframes sl{0%{top:2%;opacity:0}10%{opacity:1}90%{opacity:1}100%{top:98%;opacity:0}}
+  .scan-status{
+    position:absolute;bottom:12px;left:50%;transform:translateX(-50%);
+    font-size:9px;letter-spacing:0.22em;text-transform:uppercase;
+    color:var(--peach);background:rgba(7,20,58,0.7);padding:4px 12px;
+    border:1px solid rgba(255,201,168,.28);border-radius:999px;white-space:nowrap;
+  }
+
+  /* ===== ANALYSIS CHIPS ===== */
+  .chips-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px}
+  .chip{
+    background:var(--surface-1);border:1px solid var(--line);
+    padding:10px 12px;border-radius:4px;position:relative;
+  }
+  .chip-lbl{font-size:9px;letter-spacing:0.18em;text-transform:uppercase;color:rgba(255,255,255,.6);margin-bottom:4px}
+  .chip-val{font-size:14px;font-weight:400;color:#fff}
+  .chip-sub{font-size:11px;color:rgba(255,255,255,.55);margin-top:2px}
+
+  /* ===== SCAN BUTTON ===== */
+  .scan-btn{
+    width:100%;padding:14px;margin-top:20px;
+    background:var(--peach);color:var(--ink);border:none;cursor:pointer;
+    font-family:var(--font-body);font-size:11px;letter-spacing:0.28em;
+    text-transform:uppercase;font-weight:600;border-radius:2px;
+    transition:.2s;position:relative;overflow:hidden;
+  }
+  .scan-btn:hover:not(:disabled){box-shadow:0 0 24px rgba(255,201,168,.55);transform:translateY(-1px)}
+  .scan-btn:active{transform:translateY(0) scale(.99)}
+  .scan-btn:disabled{background:rgba(255,255,255,.08);color:var(--peach);cursor:default;border:1px solid var(--peach)}
+
+  /* ===== TONE PICKER ===== */
+  .tone-group-label{
+    font-size:10px;letter-spacing:0.14em;text-transform:uppercase;
+    color:rgba(255,255,255,.6);margin:12px 0 8px;font-weight:400;
+  }
+  .tone-row{display:flex;flex-wrap:wrap;gap:7px}
+  .tone-sw{
+    width:32px;height:32px;border-radius:50%;cursor:pointer;
+    border:2px solid transparent;padding:0;
+    transition:.2s;box-shadow:0 2px 6px rgba(7,20,58,.5);
+  }
+  .tone-sw:hover{transform:scale(1.12)}
+  .tone-sw.active{border-color:var(--peach);box-shadow:0 0 0 3px rgba(255,201,168,.25),0 2px 6px rgba(7,20,58,.5)}
+  .selected-tone{
+    display:flex;align-items:center;gap:12px;margin-top:16px;
+    padding:12px;background:var(--surface-1);border:1px solid var(--line);
+    border-radius:4px;
+  }
+  .selected-dot{width:34px;height:34px;border-radius:50%;flex-shrink:0;border:1px solid rgba(255,255,255,.2)}
+  .selected-name{font-size:15px;font-weight:400;color:#fff}
+  .selected-sub{font-size:11px;color:rgba(255,255,255,.6);margin-top:2px}
+
+  /* ===== FILTERS ===== */
+  .filter-group{margin-bottom:22px}
+  .filter-group:last-child{margin-bottom:0}
+  .filter-title{font-size:13px;font-weight:400;color:#fff;margin-bottom:12px}
+  .budget-labels{display:flex;justify-content:space-between;font-size:10px;color:rgba(255,255,255,.55);margin-bottom:8px;letter-spacing:.08em}
+  input[type=range]{
+    -webkit-appearance:none;width:100%;height:2px;
+    background:linear-gradient(to right,var(--peach) 0%,var(--peach) var(--val,40%),rgba(255,255,255,.15) var(--val,40%),rgba(255,255,255,.15) 100%);
+    outline:none;cursor:pointer;border-radius:1px;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;width:16px;height:16px;border-radius:50%;
+    background:var(--peach);border:2px solid var(--ink);
+    box-shadow:0 0 0 2px rgba(255,201,168,.3);cursor:pointer;
+  }
+  .budget-val{font-size:11px;color:var(--peach);text-align:right;margin-top:8px;letter-spacing:.06em}
+
+  .toggle-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .toggle{
+    display:flex;align-items:center;gap:10px;padding:10px 12px;
+    background:var(--surface-1);border:1px solid var(--line);
+    cursor:pointer;font-size:12px;color:#fff;font-family:inherit;
+    border-radius:4px;transition:.2s;text-align:left;
+  }
+  .toggle:hover{border-color:rgba(255,201,168,.4)}
+  .toggle.on{border-color:var(--peach);background:rgba(255,201,168,.1)}
+  .toggle-dot{
+    width:14px;height:14px;border-radius:50%;border:1px solid rgba(255,255,255,.3);
+    flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;transition:.2s;
+  }
+  .toggle.on .toggle-dot{background:var(--peach);border-color:var(--peach)}
+  .toggle.on .toggle-dot::after{content:'';width:4px;height:4px;border-radius:50%;background:var(--ink)}
+
+  .tag-row{display:flex;flex-wrap:wrap;gap:6px}
+  .tag{
+    padding:6px 14px;border:1px solid var(--line);background:transparent;
+    color:rgba(255,255,255,.8);cursor:pointer;font-family:inherit;
+    font-size:11px;letter-spacing:0.08em;text-transform:uppercase;
+    border-radius:999px;transition:.2s;
+  }
+  .tag:hover{border-color:rgba(255,201,168,.4);color:#fff}
+  .tag.active{border-color:var(--peach);color:var(--peach);background:rgba(255,201,168,.12)}
+
+  /* ===== MARKETPLACE ===== */
+  .mkt-header{
+    padding:30px 40px 0;border-bottom:1px solid var(--line);
+    position:sticky;top:68px;z-index:100;
+    background:rgba(7,20,58,0.35);
+    backdrop-filter:saturate(140%) blur(20px);
+    -webkit-backdrop-filter:saturate(140%) blur(20px);
+  }
+  .mkt-top{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:22px}
+  .mkt-title{
+    font-family:var(--font-display);font-size:40px;font-weight:300;
+    line-height:1;color:#fff;margin:0;letter-spacing:-0.02em;
+  }
+  .mkt-title em{font-style:italic;color:var(--peach);font-weight:400}
+  .mkt-sub{font-size:12px;color:rgba(255,255,255,.65);margin-top:4px}
+  .mkt-meta{text-align:right}
+  .mkt-count{font-size:11px;color:rgba(255,255,255,.75);letter-spacing:.06em}
+
+  .cat-tabs{display:flex;gap:0;overflow-x:auto;scrollbar-width:none}
+  .cat-tabs::-webkit-scrollbar{display:none}
+  .cat-tab{
+    padding:14px 22px;border:none;background:transparent;
+    color:rgba(255,255,255,.6);cursor:pointer;font-family:inherit;
+    font-size:11px;letter-spacing:0.16em;text-transform:uppercase;font-weight:400;
+    border-bottom:2px solid transparent;white-space:nowrap;transition:.2s;
+  }
+  .cat-tab.active{color:var(--peach);border-bottom-color:var(--peach)}
+  .cat-tab:hover:not(.active){color:#fff}
+
+  .sort-bar{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:16px 40px;border-bottom:1px solid var(--line);
+  }
+  .sort-left{display:flex;align-items:center;gap:10px}
+  .sort-label{font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:rgba(255,255,255,.55)}
+  .sort-btn{
+    padding:6px 14px;border:1px solid var(--line);background:transparent;
+    color:rgba(255,255,255,.7);cursor:pointer;font-family:inherit;
+    font-size:10px;letter-spacing:0.14em;text-transform:uppercase;
+    border-radius:999px;transition:.2s;
+  }
+  .sort-btn:hover{border-color:rgba(255,201,168,.4);color:#fff}
+  .sort-btn.on{border-color:var(--peach);color:var(--peach);background:rgba(255,201,168,.12)}
+  .sort-count{font-size:11px;color:rgba(255,255,255,.6)}
+  .sort-count em{color:var(--peach);font-style:normal}
+
+  /* ===== PRODUCT GRID ===== */
+  .prod-grid{
+    display:grid;grid-template-columns:repeat(auto-fill,minmax(min(270px,100%),1fr));
+    gap:1px;background:var(--line-soft);border-top:1px solid var(--line-soft);
+  }
+  .prod-card{
+    background:rgba(7,20,58,0.15);
+    backdrop-filter:blur(4px);
+    -webkit-backdrop-filter:blur(4px);
+    padding:24px;position:relative;transition:.2s;cursor:pointer;
+    animation:fadeUp .4s ease both;
+    display:flex;flex-direction:column;
+  }
+  .prod-card:hover{background:rgba(255,255,255,.06)}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+  .match-badge{
+    position:absolute;top:16px;right:16px;z-index:2;
+    background:var(--mint);color:var(--ink);
+    font-size:9px;letter-spacing:0.18em;text-transform:uppercase;
+    padding:4px 10px;font-weight:600;border-radius:999px;
+  }
+  .prod-img{
+    width:100%;height:150px;border-radius:4px;margin-bottom:18px;
+    position:relative;overflow:hidden;
+    border:1px solid var(--line-soft);
+  }
+  .prod-img-bottle{
+    position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+    width:36px;height:72px;border-radius:6px 6px 18px 18px;
+    background:linear-gradient(180deg,rgba(7,20,58,.35),rgba(7,20,58,.55));
+    border:1px solid rgba(255,255,255,.25);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.3);
+  }
+  .prod-img-bottle::before{
+    content:'';position:absolute;top:-8px;left:50%;transform:translateX(-50%);
+    width:16px;height:10px;background:rgba(7,20,58,.7);border-radius:2px;
+    border:1px solid rgba(255,255,255,.2);
+  }
+  .prod-brand{font-size:10px;letter-spacing:0.22em;text-transform:uppercase;color:rgba(255,255,255,.7);margin-bottom:6px}
+  .prod-cat{
+    display:inline-block;font-size:9px;letter-spacing:0.14em;text-transform:uppercase;
+    color:rgba(255,255,255,.6);border:1px solid var(--line);padding:3px 9px;
+    border-radius:999px;margin-bottom:12px;
+  }
+  .prod-name{font-family:var(--font-display);font-size:22px;font-weight:400;line-height:1.1;margin:0 0 8px;color:#fff}
+  .prod-desc{font-size:12px;color:rgba(255,255,255,.7);line-height:1.55;margin:0 0 14px;font-weight:300}
+  .prod-swatches{display:flex;gap:6px;margin-bottom:12px;align-items:center;flex-wrap:wrap}
+  .prod-sw{width:16px;height:16px;border-radius:50%;border:1px solid rgba(255,255,255,.2);display:inline-block}
+  .prod-more{font-size:10px;color:rgba(255,255,255,.55);margin-left:4px}
+  .prod-tags{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:14px}
+  .prod-tag{
+    font-size:9px;letter-spacing:0.1em;text-transform:uppercase;
+    padding:3px 8px;border:1px solid var(--line);color:rgba(255,255,255,.65);border-radius:999px;
+  }
+  .prod-foot{
+    display:flex;align-items:center;justify-content:space-between;
+    margin-top:auto;padding-top:14px;border-top:1px solid var(--line-soft);
+  }
+  .prod-price{font-family:var(--font-display);font-size:22px;font-weight:300;color:#fff}
+  .prod-actions{display:flex;gap:8px}
+  .prod-save{
+    width:34px;height:34px;border:1px solid var(--line);background:transparent;
+    cursor:pointer;display:flex;align-items:center;justify-content:center;
+    color:rgba(255,255,255,.7);transition:.2s;border-radius:999px;
+  }
+  .prod-save:hover,.prod-save.saved{border-color:var(--peach);color:var(--peach)}
+  .prod-shop{
+    display:inline-block;text-align:center;text-decoration:none;
+    padding:8px 18px;background:var(--peach);color:var(--ink);
+    border:none;cursor:pointer;font-family:inherit;
+    font-size:9px;letter-spacing:0.2em;text-transform:uppercase;font-weight:600;
+    border-radius:2px;transition:.2s;
+  }
+  .prod-shop:hover{box-shadow:0 0 16px rgba(255,201,168,.5);color:var(--ink)}
+  .prod-shop:visited{color:var(--ink)}
+
+  /* ===== MODAL ===== */
+  .scan-modal{
+    position:fixed;inset:0;z-index:300;
+    background:rgba(7,20,58,0.82);
+    backdrop-filter:blur(8px);
+    display:flex;align-items:center;justify-content:center;
+    animation:fadeIn .3s ease;
+  }
+  .scan-modal-inner{
+    padding:48px;text-align:center;
+    background:rgba(7,20,58,0.75);
+    backdrop-filter:saturate(140%) blur(30px);
+    border:1px solid var(--line-strong);
+    border-radius:16px;max-width:360px;width:90%;
+    box-shadow:0 40px 80px rgba(7,20,58,.6), 0 0 60px rgba(201,221,255,.15);
+  }
+  .ring-wrap{
+    width:90px;height:90px;margin:0 auto 20px;position:relative;
+  }
+  .ring-wrap svg{width:100%;height:100%}
+  .ring-pct{
+    position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    font-family:var(--font-display);font-size:30px;font-weight:300;color:#fff;
+  }
+  .ring-pct span{font-size:14px;color:var(--peach);margin-left:2px}
+  .modal-title{font-family:var(--font-display);font-size:26px;font-weight:300;margin:0 0 6px;color:#fff}
+  .modal-sub{font-size:11px;color:rgba(255,255,255,.65);letter-spacing:0.1em;margin:0}
+  .modal-steps{margin-top:24px;text-align:left}
+  .modal-step{
+    display:flex;align-items:center;gap:10px;padding:8px 0;
+    border-bottom:1px solid var(--line-soft);font-size:11px;
+    color:rgba(255,255,255,.65);
+  }
+  .modal-step:last-child{border-bottom:none}
+  .step-ico{
+    width:18px;height:18px;border-radius:50%;
+    border:1px solid var(--line);display:inline-flex;align-items:center;justify-content:center;
+    font-size:9px;flex-shrink:0;transition:.2s;
+  }
+  .step-ico.done{background:var(--peach);border-color:var(--peach);color:var(--ink)}
+  .step-ico.active{border-color:var(--peach);color:var(--peach)}
+
+  /* ===== NAV HAMBURGER (Desktop: hidden) ===== */
+  .nav-hamburger{
+    display:none;background:transparent;border:1px solid var(--line);
+    width:38px;height:38px;border-radius:6px;
+    align-items:center;justify-content:center;
+    color:#fff;cursor:pointer;padding:0;
+  }
+  .nav-hamburger:hover{background:rgba(255,255,255,.06);border-color:var(--peach)}
+  .nav-hamburger svg{width:18px;height:18px;stroke:currentColor;stroke-width:2;fill:none;stroke-linecap:round}
+
+  /* ===== RESPONSIVE: TABLET & SMALL DESKTOP ===== */
+  @media (max-width: 960px){
+    .luma-nav{padding:14px 24px}
+    .luma-logo{font-size:22px;letter-spacing:0.26em}
+    .luma-nav-links{gap:20px}
+    .luma-nav-links a{font-size:10px}
+    .luma-badge{padding:4px 10px;font-size:8px}
+
+    .app{grid-template-columns:1fr;padding-top:62px}
+    .left-panel{
+      position:static;height:auto;
+      border-right:none;border-bottom:1px solid var(--line);
+      max-height:none;
+    }
+    .right-panel{padding:0}
+    .scan-area,.tone-wrap,.filters-wrap{padding:22px 22px 20px}
+    .scan-viewport{max-width:360px;margin:0 auto}
+    .mkt-header{padding:26px 24px 0;position:static}
+    .sort-bar{padding:14px 24px}
+    .mkt-title{font-size:32px}
+  }
+
+  /* ===== RESPONSIVE: PHONE & SMALL TABLET ===== */
+  @media (max-width: 768px){
+    .luma-nav{padding:12px 16px}
+    .luma-logo{font-size:20px;letter-spacing:0.22em}
+    .luma-badge{display:none}
+
+    .nav-hamburger{display:inline-flex}
+
+    .luma-nav-links{
+      position:fixed;top:60px;left:0;right:0;
+      flex-direction:column;align-items:flex-start;
+      background:rgba(7,20,58,0.96);
+      backdrop-filter:saturate(160%) blur(24px);
+      -webkit-backdrop-filter:saturate(160%) blur(24px);
+      border-bottom:1px solid var(--line);
+      padding:18px 20px;gap:4px;
+      transform:translateY(-120%);
+      transition:transform .26s ease;
+      z-index:198;
+      pointer-events:none;
+    }
+    .luma-nav-links.open{transform:translateY(0);pointer-events:auto}
+    .luma-nav-links li{width:100%;border-bottom:1px solid var(--line-soft)}
+    .luma-nav-links li:last-child{border-bottom:none}
+    .luma-nav-links a{font-size:13px;letter-spacing:0.2em;padding:12px 0;display:block;width:100%}
+
+    .app{padding-top:58px}
+    .scan-area,.tone-wrap,.filters-wrap{padding:18px 16px}
+    .scan-viewport{max-width:300px;aspect-ratio:4/5}
+    .scan-btn{padding:14px 0;font-size:11px}
+    .chips-grid{grid-template-columns:1fr 1fr;gap:6px}
+    .chip{padding:9px 10px}
+
+    /* Product grid -> 2 columns on phone */
+    .prod-grid{grid-template-columns:repeat(2,1fr)}
+    .prod-card{padding:14px}
+    .prod-img{height:110px;margin-bottom:12px}
+    .prod-name{font-size:14px}
+    .prod-brand{font-size:9px}
+    .match-badge{top:10px;right:10px;font-size:8px;padding:3px 8px}
+
+    /* Marketplace heading + sort bar */
+    .mkt-header{padding:22px 18px 0;top:58px}
+    .mkt-top{flex-direction:column;align-items:flex-start;gap:10px;margin-bottom:16px}
+    .mkt-title{font-size:28px}
+    .mkt-meta{text-align:left}
+    .sort-bar{padding:14px 18px;flex-direction:column;align-items:flex-start;gap:10px}
+    .sort-left{flex-wrap:wrap}
+    .sort-count{font-size:10px}
+    .cat-tab{padding:12px 14px;font-size:10px}
+
+    /* Scan modal */
+    .modal-card{max-width:100%;width:calc(100vw - 24px);padding:32px 20px}
+    .modal-title{font-size:22px}
+    .ring-wrap{width:76px;height:76px}
+    .ring-pct{font-size:26px}
+  }
+
+  /* ===== VERY SMALL PHONES ===== */
+  @media (max-width: 480px){
+    .prod-grid{grid-template-columns:1fr}
+    .prod-card{padding:18px}
+    .prod-img{height:140px}
+  }
+
+
+  /* ===== MOBILE OVERFLOW FIX =====
+     Defensive rules: ensure no child forces the document wider than the
+     viewport, even if an inner element has long unbreakable content. */
+  .app,.left-panel,.right-panel,.marketplace,.mkt-header,.sort-bar,.prod-grid,.prod-card,
+  .scan-area,.tone-wrap,.filters-wrap,.luma-nav{
+    min-width:0;max-width:100%;
+  }
+  .scan-viewport{max-width:100%}
+  .prod-card,.prod-name,.prod-desc,.prod-brand,.mkt-title,.filter-title,.selected-name{
+    min-width:0;overflow-wrap:anywhere;word-break:break-word;
+  }
+  @media (max-width: 768px){
+    /* Make sure the app grid is actually a single column at this width, and
+       fix the sticky marketplace header so it can't create a horizontal bar. */
+    .app{grid-template-columns:1fr}
+    .mkt-header{position:static;top:auto}
+    /* Extra guard against horizontal overflow from any inner element */
+    body,#root,.app{overflow-x:clip}
+  }
+
+  /* ===== BIOMETRIC SCANNER HUD ===== */
+  .bio-overlay{
+    position:absolute;inset:0;pointer-events:none;
+    transform:scaleX(-1); /* mirror to match flipped video */
+    transform-origin:center;
+  }
+  .bio-guide{
+    position:absolute;inset:0;pointer-events:none;
+    width:100%;height:100%;
+  }
+  .bio-guide ellipse.ring-bg{
+    fill:none;stroke:rgba(255,255,255,.16);stroke-width:1.5;
+    stroke-dasharray:4 6;
+  }
+  .bio-guide ellipse.ring-fg{
+    fill:none;stroke:var(--peach);stroke-width:2.2;
+    stroke-linecap:round;
+    transition:stroke-dashoffset .25s ease, stroke .25s ease;
+    filter:drop-shadow(0 0 6px rgba(255,201,168,.55));
+  }
+  .bio-guide ellipse.ring-fg.ok{stroke:var(--mint);filter:drop-shadow(0 0 8px rgba(158,240,201,.75))}
+  .bio-guide ellipse.ring-fg.warn{stroke:#ffb38a;filter:drop-shadow(0 0 8px rgba(255,179,138,.55))}
+  .bio-guide ellipse.ring-fg.bad{stroke:#ff7a90;filter:drop-shadow(0 0 8px rgba(255,122,144,.6))}
+  .bio-guide .guide-tick{stroke:rgba(255,255,255,.35);stroke-width:1.3}
+  .bio-guide .guide-tick.on{stroke:var(--mint);stroke-width:2}
+
+  .bio-prompt{
+    position:absolute;left:50%;top:16px;transform:translateX(-50%);
+    background:rgba(7,20,58,.78);
+    border:1px solid rgba(255,201,168,.45);
+    color:#fff;padding:8px 16px;border-radius:999px;
+    font-size:11px;letter-spacing:.18em;text-transform:uppercase;
+    display:flex;align-items:center;gap:10px;white-space:nowrap;
+    backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+    box-shadow:0 8px 22px rgba(7,20,58,.5);
+    animation:promptIn .25s ease;
+  }
+  @keyframes promptIn{from{opacity:0;transform:translate(-50%,-8px)}to{opacity:1;transform:translate(-50%,0)}}
+  .bio-prompt.ok{border-color:rgba(158,240,201,.55)}
+  .bio-prompt .bio-arrow{font-size:14px;color:var(--peach)}
+  .bio-prompt .bio-arrow.ok{color:var(--mint)}
+
+  .bio-steps{
+    position:absolute;top:54px;left:50%;transform:translateX(-50%);
+    display:flex;gap:6px;
+  }
+  .bio-step-pill{
+    font-size:8px;letter-spacing:.22em;text-transform:uppercase;
+    padding:3px 9px;border-radius:999px;
+    background:rgba(7,20,58,.55);
+    border:1px solid rgba(255,255,255,.14);
+    color:rgba(255,255,255,.55);
+  }
+  .bio-step-pill.active{border-color:var(--peach);color:var(--peach)}
+  .bio-step-pill.done{border-color:var(--mint);color:var(--mint);background:rgba(158,240,201,.12)}
+
+  .bio-metrics{
+    position:absolute;left:10px;bottom:10px;right:10px;
+    display:grid;grid-template-columns:repeat(4,1fr);gap:6px;
+    pointer-events:none;
+  }
+  .bio-metric{
+    background:rgba(7,20,58,.72);
+    border:1px solid rgba(255,255,255,.1);
+    border-radius:6px;padding:6px 8px;
+    backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+  }
+  .bio-metric-lbl{
+    font-size:7.5px;letter-spacing:.18em;text-transform:uppercase;
+    color:rgba(255,255,255,.55);margin-bottom:2px;
+  }
+  .bio-metric-val{font-size:11px;color:#fff;font-weight:500;letter-spacing:.03em}
+  .bio-metric.ok{border-color:rgba(158,240,201,.45)}
+  .bio-metric.ok .bio-metric-val{color:var(--mint)}
+  .bio-metric.bad{border-color:rgba(255,122,144,.4)}
+  .bio-metric.bad .bio-metric-val{color:#ff9ab0}
+
+  .bio-mesh{
+    position:absolute;inset:0;width:100%;height:100%;
+    transform:scaleX(-1);transform-origin:center;
+    pointer-events:none;
+  }
+
+  .bio-flash{
+    position:absolute;inset:0;background:#fff;
+    opacity:0;pointer-events:none;
+    animation:bioFlash .7s ease;
+  }
+  @keyframes bioFlash{
+    0%{opacity:0}15%{opacity:.85}100%{opacity:0}
+  }
+  .bio-captured-stamp{
+    position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+    padding:18px 26px;border-radius:12px;
+    background:rgba(7,20,58,.75);
+    border:1px solid var(--mint);
+    color:var(--mint);
+    font-size:11px;letter-spacing:.3em;text-transform:uppercase;
+    box-shadow:0 0 40px rgba(158,240,201,.35);
+    animation:stampIn .4s ease;
+    text-align:center;
+  }
+  .bio-captured-stamp strong{
+    display:block;font-family:var(--font-display);
+    font-size:28px;font-weight:300;color:#fff;letter-spacing:.04em;
+    margin-bottom:4px;
+  }
+  @keyframes stampIn{from{opacity:0;transform:translate(-50%,-50%) scale(.9)}to{opacity:1;transform:translate(-50%,-50%) scale(1)}}
+
+  .bio-privacy{
+    margin-top:10px;font-size:9px;letter-spacing:.18em;text-transform:uppercase;
+    color:rgba(255,255,255,.5);text-align:center;
+    display:flex;align-items:center;justify-content:center;gap:6px;
+  }
+  .bio-privacy::before{
+    content:'';width:6px;height:6px;border-radius:50%;
+    background:var(--mint);box-shadow:0 0 8px var(--mint);
+  }
+
+  @media (max-width: 768px){
+    .bio-metric-lbl{font-size:7px;letter-spacing:.14em}
+    .bio-metric-val{font-size:10px}
+    .bio-prompt{font-size:10px;padding:6px 12px}
+    .bio-step-pill{font-size:7px;padding:2px 7px}
+    .bio-captured-stamp{padding:14px 18px}
+    .bio-captured-stamp strong{font-size:22px}
+  }
+
+  /* ===================================================================== */
+  /* Auth / Profile                                                        */
+  /* ===================================================================== */
+
+  /* Nav auth chip (sign-in button / email pill) */
+  .nav-auth{
+    display:flex;align-items:center;gap:8px;margin-left:8px;position:relative;
+  }
+  .nav-auth-btn{
+    background:rgba(255,255,255,.06);
+    border:1px solid rgba(255,255,255,.16);
+    color:#fff;font-family:var(--font-body);
+    font-size:11px;letter-spacing:.18em;text-transform:uppercase;
+    padding:8px 16px;border-radius:999px;cursor:pointer;
+    transition:background .2s, border-color .2s;
+  }
+  .nav-auth-btn:hover{
+    background:rgba(255,255,255,.12);
+    border-color:rgba(255,201,168,.45);
+  }
+  .nav-auth-chip{
+    display:flex;align-items:center;gap:8px;
+    background:rgba(255,255,255,.06);
+    border:1px solid rgba(255,255,255,.16);
+    color:#fff;font-family:var(--font-body);
+    font-size:11px;letter-spacing:.08em;
+    padding:6px 12px 6px 8px;border-radius:999px;cursor:pointer;
+    transition:background .2s, border-color .2s;
+  }
+  .nav-auth-chip:hover{
+    background:rgba(255,255,255,.1);
+    border-color:rgba(255,201,168,.4);
+  }
+  .nav-auth-avatar{
+    width:26px;height:26px;border-radius:50%;
+    background:linear-gradient(135deg,var(--peach),#e8a58a);
+    color:#2a1a14;font-family:var(--font-display);
+    font-size:14px;font-weight:500;
+    display:flex;align-items:center;justify-content:center;
+    flex-shrink:0;
+  }
+  .nav-auth-email{
+    max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+    opacity:.85;
+  }
+  .nav-auth-caret{opacity:.6;font-size:9px;margin-left:2px}
+  .nav-auth-menu{
+    position:absolute;top:calc(100% + 10px);right:0;
+    min-width:220px;z-index:60;
+    background:rgba(20,14,18,.92);
+    border:1px solid rgba(255,255,255,.12);
+    border-radius:16px;
+    backdrop-filter:blur(18px);
+    -webkit-backdrop-filter:blur(18px);
+    box-shadow:0 20px 60px rgba(0,0,0,.5);
+    padding:8px;
+    animation:navMenuIn .18s ease-out;
+  }
+  @keyframes navMenuIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
+  .nav-auth-menu-email{
+    padding:10px 12px 8px;font-size:10px;letter-spacing:.12em;
+    text-transform:uppercase;color:rgba(255,255,255,.5);
+    border-bottom:1px solid rgba(255,255,255,.08);
+    margin-bottom:6px;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .nav-auth-menu button{
+    width:100%;text-align:left;background:none;border:0;cursor:pointer;
+    color:#fff;font-family:var(--font-body);font-size:13px;
+    padding:9px 12px;border-radius:10px;
+    transition:background .15s;
+  }
+  .nav-auth-menu button:hover{background:rgba(255,255,255,.08)}
+  .nav-auth-menu button.danger{color:#f8a89c}
+  .nav-auth-menu button.danger:hover{background:rgba(248,168,156,.1)}
+
+  /* Auth modal */
+  .auth-backdrop{
+    position:fixed;inset:0;z-index:200;
+    background:rgba(8,4,8,.72);
+    backdrop-filter:blur(10px);
+    -webkit-backdrop-filter:blur(10px);
+    display:flex;align-items:center;justify-content:center;
+    padding:20px;
+    animation:authBackdropIn .25s ease-out;
+  }
+  @keyframes authBackdropIn{from{opacity:0}to{opacity:1}}
+  .auth-card{
+    width:100%;max-width:420px;
+    background:linear-gradient(180deg, rgba(35,22,28,.95), rgba(22,14,18,.95));
+    border:1px solid rgba(255,255,255,.12);
+    border-radius:22px;
+    box-shadow:0 30px 90px rgba(0,0,0,.6);
+    padding:36px 32px 28px;
+    color:#fff;
+    position:relative;
+    animation:authCardIn .3s cubic-bezier(.2,.9,.3,1);
+  }
+  @keyframes authCardIn{from{opacity:0;transform:translateY(14px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}
+  .auth-close{
+    position:absolute;top:14px;right:14px;
+    width:32px;height:32px;border-radius:50%;
+    background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);
+    color:#fff;font-size:16px;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+    transition:background .2s;
+  }
+  .auth-close:hover{background:rgba(255,255,255,.12)}
+  .auth-brand{
+    font-family:var(--font-display);font-style:italic;font-weight:300;
+    font-size:32px;letter-spacing:6px;text-align:center;margin-bottom:4px;
+  }
+  .auth-brand span{color:var(--peach)}
+  .auth-subtitle{
+    text-align:center;font-size:11px;letter-spacing:.2em;text-transform:uppercase;
+    color:rgba(255,255,255,.55);margin-bottom:26px;
+  }
+  .auth-tabs{
+    display:flex;background:rgba(255,255,255,.04);
+    border:1px solid rgba(255,255,255,.08);
+    border-radius:999px;padding:4px;margin-bottom:22px;
+  }
+  .auth-tab{
+    flex:1;background:none;border:0;cursor:pointer;
+    color:rgba(255,255,255,.55);font-family:var(--font-body);
+    font-size:11px;letter-spacing:.18em;text-transform:uppercase;
+    padding:9px 12px;border-radius:999px;
+    transition:background .2s, color .2s;
+  }
+  .auth-tab.active{
+    background:linear-gradient(135deg, rgba(255,201,168,.25), rgba(255,201,168,.12));
+    color:#fff;box-shadow:inset 0 0 0 1px rgba(255,201,168,.3);
+  }
+  .auth-field{margin-bottom:14px}
+  .auth-label{
+    display:block;font-size:10px;letter-spacing:.2em;text-transform:uppercase;
+    color:rgba(255,255,255,.55);margin-bottom:8px;
+  }
+  .auth-input{
+    width:100%;box-sizing:border-box;
+    background:rgba(255,255,255,.04);
+    border:1px solid rgba(255,255,255,.12);
+    border-radius:12px;
+    color:#fff;font-family:var(--font-body);font-size:14px;
+    padding:12px 14px;
+    transition:border-color .2s, background .2s;
+    -webkit-appearance:none;appearance:none;
+  }
+  .auth-input:focus{
+    outline:none;
+    border-color:rgba(255,201,168,.5);
+    background:rgba(255,255,255,.06);
+  }
+  .auth-pin-input{
+    letter-spacing:12px;text-align:center;font-size:20px;padding:14px;
+    font-variant-numeric:tabular-nums;
+  }
+  .auth-help{
+    font-size:11px;color:rgba(255,255,255,.45);
+    margin-top:6px;line-height:1.5;
+  }
+  .auth-error{
+    background:rgba(248,168,156,.08);
+    border:1px solid rgba(248,168,156,.3);
+    color:#f8a89c;
+    border-radius:10px;padding:10px 12px;
+    font-size:12px;line-height:1.5;margin-bottom:14px;
+  }
+  .auth-success{
+    background:rgba(168,232,200,.08);
+    border:1px solid rgba(168,232,200,.3);
+    color:#a8e8c8;
+    border-radius:10px;padding:10px 12px;
+    font-size:12px;line-height:1.5;margin-bottom:14px;
+  }
+  .auth-submit{
+    width:100%;margin-top:6px;
+    background:linear-gradient(135deg, var(--peach) 0%, #e8a58a 100%);
+    color:#2a1a14;border:0;cursor:pointer;
+    font-family:var(--font-body);font-size:12px;letter-spacing:.22em;
+    text-transform:uppercase;font-weight:600;
+    padding:14px 18px;border-radius:999px;
+    transition:transform .15s, box-shadow .2s, opacity .2s;
+  }
+  .auth-submit:hover{transform:translateY(-1px);box-shadow:0 10px 30px rgba(255,201,168,.3)}
+  .auth-submit:disabled{opacity:.55;cursor:not-allowed;transform:none;box-shadow:none}
+  .auth-footer{
+    margin-top:20px;padding-top:16px;
+    border-top:1px solid rgba(255,255,255,.08);
+    text-align:center;font-size:11px;color:rgba(255,255,255,.5);
+    line-height:1.6;
+  }
+  .auth-unconfigured{
+    background:rgba(255,201,168,.06);
+    border:1px solid rgba(255,201,168,.25);
+    border-radius:12px;padding:14px;
+    font-size:12px;color:rgba(255,255,255,.75);
+    line-height:1.55;margin-bottom:16px;
+  }
+  .auth-unconfigured strong{color:#ffc9a8;display:block;margin-bottom:4px;letter-spacing:.12em;text-transform:uppercase;font-size:10px}
+
+  /* Profile view */
+  .profile-wrap{
+    max-width:980px;margin:0 auto;padding:108px 24px 80px;
+    color:#fff;
+  }
+  .profile-header{
+    display:flex;align-items:center;gap:20px;flex-wrap:wrap;
+    margin-bottom:36px;
+    padding-bottom:26px;
+    border-bottom:1px solid rgba(255,255,255,.08);
+  }
+  .profile-avatar{
+    width:72px;height:72px;border-radius:50%;
+    background:linear-gradient(135deg,var(--peach),#e8a58a);
+    color:#2a1a14;font-family:var(--font-display);
+    font-size:32px;font-weight:400;
+    display:flex;align-items:center;justify-content:center;
+    flex-shrink:0;
+    box-shadow:0 8px 24px rgba(255,201,168,.25);
+  }
+  .profile-heading{flex:1;min-width:200px}
+  .profile-heading h1{
+    font-family:var(--font-display);font-weight:300;font-size:32px;
+    margin:0 0 4px;letter-spacing:.02em;
+  }
+  .profile-heading .profile-email{
+    font-size:12px;letter-spacing:.18em;text-transform:uppercase;
+    color:rgba(255,255,255,.55);
+  }
+  .profile-signout{
+    background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.14);
+    color:#fff;font-family:var(--font-body);
+    font-size:11px;letter-spacing:.18em;text-transform:uppercase;
+    padding:10px 18px;border-radius:999px;cursor:pointer;
+    transition:background .2s;
+  }
+  .profile-signout:hover{background:rgba(255,255,255,.1)}
+
+  .profile-grid{
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
+    gap:18px;margin-bottom:28px;
+  }
+  .profile-card{
+    background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+    border:1px solid rgba(255,255,255,.08);
+    border-radius:18px;
+    padding:22px 22px 20px;
+  }
+  .profile-card h3{
+    font-family:var(--font-body);font-weight:500;
+    font-size:10px;letter-spacing:.24em;text-transform:uppercase;
+    color:rgba(255,255,255,.55);
+    margin:0 0 14px;
+  }
+  .profile-kv{
+    display:flex;justify-content:space-between;align-items:center;
+    padding:8px 0;border-bottom:1px dashed rgba(255,255,255,.06);
+    font-size:13px;
+  }
+  .profile-kv:last-child{border-bottom:0}
+  .profile-kv-k{color:rgba(255,255,255,.55);letter-spacing:.06em}
+  .profile-kv-v{color:#fff;font-weight:500;text-align:right}
+  .profile-tone-dot{
+    display:inline-block;width:14px;height:14px;border-radius:50%;
+    vertical-align:middle;margin-right:8px;
+    box-shadow:inset 0 0 0 1px rgba(0,0,0,.15), 0 0 0 1px rgba(255,255,255,.2);
+  }
+  .profile-empty{
+    font-size:12px;color:rgba(255,255,255,.5);line-height:1.6;
+    padding:8px 0 4px;
+  }
+  .profile-section-title{
+    font-family:var(--font-display);font-weight:300;font-size:22px;
+    letter-spacing:.02em;margin:12px 0 14px;
+  }
+  .profile-history{display:flex;flex-direction:column;gap:10px}
+  .profile-history-row{
+    display:flex;align-items:center;gap:14px;
+    background:rgba(255,255,255,.03);
+    border:1px solid rgba(255,255,255,.06);
+    border-radius:12px;padding:12px 14px;
+    font-size:13px;
+  }
+  .profile-history-date{
+    font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+    color:rgba(255,255,255,.5);min-width:140px;
+  }
+  .profile-history-meta{flex:1;color:rgba(255,255,255,.85)}
+  .profile-history-meta b{font-weight:500;color:#fff}
+  .profile-danger{
+    margin-top:28px;
+    background:rgba(248,168,156,.04);
+    border:1px solid rgba(248,168,156,.2);
+    border-radius:14px;padding:18px;
+  }
+  .profile-danger h3{color:#f8a89c}
+  .profile-danger p{font-size:12px;color:rgba(255,255,255,.65);line-height:1.55;margin:0 0 10px}
+  .profile-danger button{
+    background:transparent;color:#f8a89c;
+    border:1px solid rgba(248,168,156,.4);
+    font-family:var(--font-body);font-size:11px;letter-spacing:.18em;
+    text-transform:uppercase;padding:9px 16px;border-radius:999px;cursor:pointer;
+    transition:background .2s;
+  }
+  .profile-danger button:hover{background:rgba(248,168,156,.1)}
+
+  .profile-gate{
+    max-width:480px;margin:80px auto;padding:0 24px;text-align:center;color:#fff;
+  }
+  .profile-gate h2{
+    font-family:var(--font-display);font-weight:300;font-size:34px;
+    margin:0 0 10px;letter-spacing:.02em;
+  }
+  .profile-gate p{color:rgba(255,255,255,.6);font-size:14px;line-height:1.6;margin:0 0 22px}
+
+  @media (max-width:640px){
+    .profile-wrap{padding:88px 18px 60px}
+    .profile-heading h1{font-size:26px}
+    .profile-avatar{width:58px;height:58px;font-size:26px}
+    .profile-history-row{flex-direction:column;align-items:flex-start;gap:6px}
+    .profile-history-date{min-width:0}
+    .nav-auth-email{max-width:100px}
+  }
+</style>
+</head>
+<body>
+<div id="root">
+  <div id="boot-status" style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:14px;color:#fff;font-family:'Cormorant Garamond',serif;">
+    <div style="font-size:42px;font-weight:300;letter-spacing:8px;font-style:italic;">L<span style="color:#ffc9a8;">UM</span>A</div>
+    <div id="boot-msg" style="font-family:'DM Sans',sans-serif;font-size:13px;opacity:.75;letter-spacing:1px;">Loading…</div>
+  </div>
+</div>
+
+<!-- React 18 + ReactDOM + Babel Standalone from CDN -->
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script>
+/* global window */
+window.LUMA_TONES = {
+  light: [
+    { id: 'l1', name: 'Porcelain',   color: '#fbeee0', undertone: 'Cool · Pink' },
+    { id: 'l2', name: 'Ivory Warm',  color: '#f4d9bc', undertone: 'Warm · Ivory' },
+    { id: 'l3', name: 'Nude Rose',   color: '#eec8a8', undertone: 'Neutral · Rose' },
+    { id: 'l4', name: 'Warm Beige',  color: '#e0b898', undertone: 'Warm · Golden' },
+  ],
+  medium: [
+    { id: 'm1', name: 'Honey',       color: '#c8946a', undertone: 'Warm · Honey' },
+    { id: 'm2', name: 'Caramel',     color: '#b87c50', undertone: 'Warm · Olive' },
+    { id: 'm3', name: 'Golden Tan',  color: '#a86a38', undertone: 'Warm · Golden' },
+    { id: 'm4', name: 'Olive',       color: '#987060', undertone: 'Neutral · Olive' },
+  ],
+  deep: [
+    { id: 'd1', name: 'Mahogany',    color: '#784028', undertone: 'Warm · Red' },
+    { id: 'd2', name: 'Espresso',    color: '#5a2e18', undertone: 'Cool · Neutral' },
+    { id: 'd3', name: 'Ebony',       color: '#3a1e10', undertone: 'Warm · Golden' },
+    { id: 'd4', name: 'Umber',       color: '#6a3820', undertone: 'Neutral · Brown' },
+  ],
+};
+
+window.LUMA_PRODUCTS = [
+  { brand: "NARS", name: "Natural Radiant Longwear", cat: "Foundation", desc: "Medium-to-full coverage with a natural finish. Skincare-infused for a flawless all-day look.", price: 42, swatches: ["#f4d9bc","#eec8a8","#e8be98","#c89060"], match: 97, tags: ["Cruelty-free"] },
+  { brand: "Charlotte Tilbury", name: "Airbrush Flawless", cat: "Foundation", desc: "A skin-perfecting foundation that blurs pores and fine lines for a flawlessly airbrushed effect.", price: 44, swatches: ["#f0d5b0","#ead0ac","#e4caa8"], match: 93, tags: ["Cruelty-free","Silicone-free"] },
+  { brand: "Fenty Beauty", name: "Pro Filt'r Soft Matte", cat: "Foundation", desc: "Long-wearing, transfer-resistant foundation with a soft-matte finish. 50 shades for every skin tone.", price: 40, swatches: ["#f5e0c8","#f0d8be","#ead0b4","#c89060"], match: 88, tags: ["Vegan","Cruelty-free"] },
+  { brand: "Dior", name: "Forever Skin Glow", cat: "Foundation", desc: "A luminous finish foundation with 24h hydration, enhanced with a golden flower complex.", price: 56, swatches: ["#f2dcc4","#ead4bc","#e2ccb4"], match: 91, tags: ["SPF 15"] },
+  { brand: "Ilia Beauty", name: "True Skin Serum Foundation", cat: "Foundation", desc: "A buildable, skin-improving serum foundation with hyaluronic acid and niacinamide.", price: 54, swatches: ["#f4dcc8","#ecd4c0","#e4cbb8"], match: 85, tags: ["Vegan","Cruelty-free","Paraben-free","Silicone-free","Fragrance-free","Clean"] },
+  { brand: "Rare Beauty", name: "Liquid Touch Weightless", cat: "Foundation", desc: "A buildable, skin-like foundation that blends seamlessly for a weightless, natural finish.", price: 32, swatches: ["#f3dcc2","#edd4ba","#e7cdb2"], match: 76, tags: ["Vegan","Cruelty-free"] },
+  { brand: "MAC", name: "Studio Fix Fluid", cat: "Foundation", desc: "Medium-to-full buildable coverage with a matte finish. SPF 15. Long-wearing formula.", price: 36, swatches: ["#f2dabb","#ecd2b3","#e6ccab"], match: 80, tags: ["SPF 15"] },
+  { brand: "Est\u00e9e Lauder", name: "Double Wear Stay-in-Place", cat: "Foundation", desc: "The iconic 24-hour matte foundation trusted by professionals worldwide.", price: 48, swatches: ["#f2d6b8","#ecd0b2","#e6caac"], match: 86, tags: ["SPF 10"] },
+  { brand: "Lanc\u00f4me", name: "Teint Idole Ultra Wear", cat: "Foundation", desc: "24-hour wear foundation with a skin-like matte finish and buildable full coverage.", price: 50, swatches: ["#f6e4ce","#f2dcc2","#ecd4b8","#e6ccae"], match: 87, tags: ["SPF 39"] },
+  { brand: "Giorgio Armani", name: "Luminous Silk", cat: "Foundation", desc: "Iconic luxurious, weightless silk foundation that looks like your skin but better.", price: 69, swatches: ["#f6e4ce","#f2dcc2","#ecd4b8","#e6ccae","#dcbea0"], match: 89, tags: ["Luxury"] },
+  { brand: "Clinique", name: "Even Better Makeup SPF 15", cat: "Foundation", desc: "Fragrance-free foundation that visibly fades dark spots and evens skin tone in 12 weeks.", price: 36, swatches: ["#f2dcc2","#ecd4b8","#e6ccae","#dcbea0"], match: 82, tags: ["SPF 15","Fragrance-free"] },
+  { brand: "Hourglass", name: "Vanish Seamless Finish", cat: "Foundation", desc: "Waterproof, buildable full-coverage foundation with a weightless, seamless finish.", price: 64, swatches: ["#f6e4ce","#f2dcc2","#ecd4b8","#e6ccae","#dcbea0"], match: 84, tags: ["Vegan","Luxury"] },
+  { brand: "Too Faced", name: "Born This Way", cat: "Foundation", desc: "Medium-to-full coverage, undetectable foundation enriched with coconut water and hyaluronic acid.", price: 42, swatches: ["#f6e4ce","#f2dcc2","#ecd4b8","#e6ccae"], match: 83, tags: ["Cruelty-free"] },
+  { brand: "Maybelline", name: "Fit Me Matte + Poreless", cat: "Foundation", desc: "Natural-looking, matte foundation for normal to oily skin. Blurs pores. Budget staple.", price: 10, swatches: ["#f6e4ce","#f2dcc2","#ecd4b8","#e6ccae"], match: 79, tags: ["Budget"] },
+  { brand: "Laura Mercier", name: "Tinted Moisturizer Natural Skin Illuminator", cat: "Foundation", desc: "Lightweight hydrating tinted moisturizer with SPF 20 and a subtle luminous finish.", price: 49, swatches: ["#f6e4ce","#f2dcc2","#ecd4b8"], match: 81, tags: ["SPF 20"] },
+  { brand: "Bobbi Brown", name: "Skin Long-Wear Weightless", cat: "Foundation", desc: "Weightless, 16-hour full-coverage foundation with a natural, soft-matte finish.", price: 52, swatches: ["#f6e4ce","#f2dcc2","#ecd4b8","#e6ccae"], match: 82, tags: ["Cruelty-free"] },
+  { brand: "YSL", name: "All Hours Liquid Foundation", cat: "Foundation", desc: "Matte, full-coverage foundation with 24-hour hydration and wear.", price: 65, swatches: ["#f6e4ce","#f2dcc2","#ecd4b8","#e6ccae"], match: 85, tags: ["Luxury","SPF 39"] },
+  { brand: "Chanel", name: "Les Beiges Healthy Glow", cat: "Foundation", desc: "Super-light healthy glow foundation with SPF 25 and a radiant, luminous finish.", price: 70, swatches: ["#f6e4ce","#f2dcc2","#ecd4b8","#e6ccae"], match: 86, tags: ["Luxury","SPF 25"] },
+  { brand: "Revlon", name: "ColorStay Longwear", cat: "Foundation", desc: "24-hour longwear foundation with SoftFlex technology for a flawless, comfortable finish.", price: 15, swatches: ["#f6e4ce","#f2dcc2","#ecd4b8","#e6ccae"], match: 77, tags: ["Budget","SPF 15"] },
+  { brand: "Kosas", name: "Revealer Skin Improving Foundation", cat: "Foundation", desc: "Medium buildable, serum-like foundation with caffeine, peptides and HA.", price: 42, swatches: ["#f6e4ce","#f2dcc2","#ecd4b8","#e6ccae"], match: 83, tags: ["Vegan","Clean","Silicone-free","Fragrance-free","Cruelty-free"] },
+  { brand: "NARS", name: "Radiant Creamy Concealer", cat: "Concealer", desc: "Hydrating, multi-action concealer that brightens, corrects and perfects with a natural, radiant finish.", price: 32, swatches: ["#f6e0c4","#f0d6b6","#e8cca8","#c89060"], match: 95, tags: ["Cruelty-free"] },
+  { brand: "Tarte", name: "Shape Tape Contour", cat: "Concealer", desc: "Full-coverage concealer that camouflages dark circles, blemishes and discoloration. 16hr wear.", price: 32, swatches: ["#f8e4cc","#f4dcc0","#ecd2b4","#e4c8a8"], match: 92, tags: ["Vegan","Cruelty-free"] },
+  { brand: "Maybelline", name: "Instant Age Rewind Eraser", cat: "Concealer", desc: "Cult-classic under-eye concealer with goji berry and haloxyl to brighten and de-puff.", price: 10, swatches: ["#f8e4cc","#f4dcc0","#ecd2b4","#e4c8a8"], match: 88, tags: ["Budget"] },
+  { brand: "Charlotte Tilbury", name: "Magic Away Liquid Concealer", cat: "Concealer", desc: "Smudge-proof, crease-proof concealer with Visible-Age Rewind technology.", price: 37, swatches: ["#f8e4cc","#f4dcc0","#ecd2b4","#e4c8a8"], match: 87, tags: ["Cruelty-free"] },
+  { brand: "Fenty Beauty", name: "Pro Filt'r Instant Retouch", cat: "Concealer", desc: "Longwear, hydrating concealer with a soft-matte finish in 50 buildable shades.", price: 27, swatches: ["#f8e4cc","#f4dcc0","#ecd2b4","#e4c8a8","#d4ac88"], match: 90, tags: ["Vegan","Cruelty-free"] },
+  { brand: "Kosas", name: "Revealer Concealer Super Creamy", cat: "Concealer", desc: "Super-creamy concealer with peptides, hyaluronic acid and caffeine to treat the skin underneath.", price: 28, swatches: ["#f8e4cc","#f4dcc0","#ecd2b4"], match: 84, tags: ["Vegan","Clean","Silicone-free","Fragrance-free","Cruelty-free"] },
+  { brand: "Il Makiage", name: "F*ck I'm Flawless", cat: "Concealer", desc: "Waterproof, full-coverage concealer with a luminous, weightless finish. 24hr wear.", price: 29, swatches: ["#f8e4cc","#f4dcc0","#ecd2b4","#e4c8a8"], match: 81, tags: ["Vegan"] },
+  { brand: "Laura Mercier", name: "Flawless Fusion Ultra-Longwear", cat: "Concealer", desc: "Long-lasting concealer with a satin finish that doesn't crease or settle into fine lines.", price: 32, swatches: ["#f8e4cc","#f4dcc0","#ecd2b4","#e4c8a8"], match: 78, tags: [] },
+  { brand: "Too Faced", name: "Born This Way Super Coverage", cat: "Concealer", desc: "Multi-use full-coverage concealer infused with coconut water and hyaluronic acid.", price: 32, swatches: ["#f8e4cc","#f4dcc0","#ecd2b4","#e4c8a8"], match: 82, tags: ["Cruelty-free"] },
+  { brand: "Dior", name: "Forever Skin Correct", cat: "Concealer", desc: "Full-coverage 24h-wear concealer with a caring formula that nourishes and hydrates.", price: 40, swatches: ["#f8e4cc","#f4dcc0","#ecd2b4","#e4c8a8"], match: 85, tags: ["Luxury"] },
+  { brand: "Urban Decay", name: "Stay Naked Correcting", cat: "Concealer", desc: "Full-coverage, waterproof correcting concealer with a matte, natural finish. 24hr wear.", price: 32, swatches: ["#f8e4cc","#f4dcc0","#ecd2b4","#e4c8a8"], match: 79, tags: ["Vegan","Cruelty-free"] },
+  { brand: "NYX", name: "Can't Stop Won't Stop Concealer", cat: "Concealer", desc: "Full-coverage, waterproof concealer with up to 24hr wear. Budget hero product.", price: 9, swatches: ["#f8e4cc","#f4dcc0","#ecd2b4","#e4c8a8"], match: 76, tags: ["Vegan","Cruelty-free","Budget"] },
+  { brand: "Bobbi Brown", name: "Skin Full Coverage Longwear Concealer", cat: "Concealer", desc: "Full-coverage 16hr concealer for under-eyes, around the nose and small imperfections.", price: 32, swatches: ["#f8e4cc","#f4dcc0","#ecd2b4","#e4c8a8"], match: 80, tags: ["Cruelty-free"] },
+  { brand: "e.l.f.", name: "Hydrating Camo Concealer", cat: "Concealer", desc: "Longwear, hydrating, full-coverage concealer with a weightless, crease-free finish.", price: 7, swatches: ["#f8e4cc","#f4dcc0","#ecd2b4","#e4c8a8"], match: 78, tags: ["Vegan","Cruelty-free","Budget"] },
+  { brand: "Rare Beauty", name: "Liquid Touch Brightening Concealer", cat: "Concealer", desc: "Weightless, buildable concealer with a radiant finish that brightens under-eyes.", price: 23, swatches: ["#f8e4cc","#f4dcc0","#ecd2b4","#e4c8a8"], match: 83, tags: ["Vegan","Cruelty-free","Fragrance-free"] },
+  { brand: "Clinique", name: "Even Better All-Over Concealer", cat: "Concealer", desc: "Weightless, crease-free concealer with vitamin C for radiance.", price: 32, swatches: ["#f8e4cc","#f4dcc0","#ecd2b4","#e4c8a8"], match: 75, tags: ["Fragrance-free"] },
+  { brand: "Rare Beauty", name: "Soft Pinch Liquid Blush", cat: "Blush & Bronzer", desc: "Weightless liquid blush that blends effortlessly for a natural, healthy flush.", price: 22, swatches: ["#e08878","#d46868","#c45060","#a43848"], match: 96, tags: ["Vegan","Cruelty-free","Silicone-free","Fragrance-free"] },
+  { brand: "NARS", name: "Orgasm Blush", cat: "Blush & Bronzer", desc: "The iconic peachy-pink with golden shimmer that flatters every skin tone.", price: 34, swatches: ["#e89880","#dc7864","#c85850"], match: 94, tags: ["Cruelty-free"] },
+  { brand: "Benefit", name: "Hoola Matte Bronzer", cat: "Blush & Bronzer", desc: "Matte, natural-looking bronzer that warms up the face for a sun-kissed glow.", price: 32, swatches: ["#c48858","#b07048","#986038","#805028"], match: 91, tags: ["Cruelty-free"] },
+  { brand: "Charlotte Tilbury", name: "Cheek to Chic", cat: "Blush & Bronzer", desc: "Swish & pop powder blush that makes skin glow from every angle.", price: 40, swatches: ["#e08880","#d06870","#c04858"], match: 89, tags: [] },
+  { brand: "Fenty Beauty", name: "Cheeks Out Freestyle Cream Blush", cat: "Blush & Bronzer", desc: "Weightless cream blush with a bright, buildable finish in 12 electric hues.", price: 22, swatches: ["#e89080","#dc7070","#c85060"], match: 87, tags: ["Vegan","Cruelty-free"] },
+  { brand: "Dior", name: "Forever Couture Luminizer", cat: "Blush & Bronzer", desc: "Long-wear highlighting powder with a hyper-radiant, couture finish.", price: 55, swatches: ["#f4d8b0","#eccc98","#e0b870"], match: 84, tags: ["Luxury"] },
+  { brand: "Milk Makeup", name: "Lip + Cheek Cream Stick", cat: "Blush & Bronzer", desc: "Creamy, cream-to-powder blush stick for lips and cheeks. Vegan, clean formula.", price: 24, swatches: ["#dc7070","#c85060","#b03848"], match: 82, tags: ["Vegan","Clean","Silicone-free","Fragrance-free","Cruelty-free"] },
+  { brand: "Hourglass", name: "Ambient Strobe Lighting Powder", cat: "Blush & Bronzer", desc: "Multi-dimensional highlighter that captures and reflects light for a luminous glow.", price: 56, swatches: ["#f4d8b0","#eccc98","#e0b870"], match: 85, tags: ["Vegan","Luxury"] },
+  { brand: "Tarte", name: "Amazonian Clay 12-Hour Blush", cat: "Blush & Bronzer", desc: "Naturally smooth and soft long-wearing powder blush with skin-loving clay.", price: 31, swatches: ["#e89080","#dc7070","#c85060","#b03848"], match: 83, tags: ["Vegan","Cruelty-free"] },
+  { brand: "Physicians Formula", name: "Butter Bronzer Murumuru", cat: "Blush & Bronzer", desc: "Brazilian-inspired bronzer with butter-soft feel and a luminous matte finish.", price: 15, swatches: ["#c48858","#b07048","#986038","#805028"], match: 80, tags: ["Cruelty-free","Budget"] },
+  { brand: "Becca", name: "Shimmering Skin Perfector Pressed", cat: "Blush & Bronzer", desc: "Luxuriously smooth, pearlized pressed powder highlighter for a lit-from-within glow.", price: 40, swatches: ["#f4d8b0","#eccc98","#e0b870"], match: 81, tags: ["Cruelty-free"] },
+  { brand: "NARS", name: "Laguna Bronzer", cat: "Blush & Bronzer", desc: "Cult-favorite warm-toned bronzer that delivers a natural, sun-kissed finish.", price: 46, swatches: ["#c48858","#b07048","#986038","#805028"], match: 89, tags: ["Cruelty-free"] },
+  { brand: "e.l.f.", name: "Putty Blush", cat: "Blush & Bronzer", desc: "Creamy, blendable, long-wearing putty blush for a natural pop of color. Budget favorite.", price: 6, swatches: ["#e89080","#dc7070","#c85060","#b03848"], match: 78, tags: ["Vegan","Cruelty-free","Budget"] },
+  { brand: "Glossier", name: "Cloud Paint", cat: "Blush & Bronzer", desc: "Seamless gel-cream blush in a squeezable tube. Buildable, sheer-to-bright finish.", price: 20, swatches: ["#e89080","#dc7070","#c85060","#b03848"], match: 85, tags: ["Vegan","Cruelty-free"] },
+  { brand: "Chanel", name: "Joues Contraste Powder Blush", cat: "Blush & Bronzer", desc: "Silky powder blush in a luminous finish for a healthy, fresh glow.", price: 55, swatches: ["#e89080","#dc7070","#c85060","#b03848"], match: 83, tags: ["Luxury"] },
+  { brand: "Patrick Ta", name: "Major Headlines Blush", cat: "Blush & Bronzer", desc: "Dual-ended cream and powder blush duo for a fresh, flushed cheek.", price: 42, swatches: ["#e89080","#dc7070","#c85060","#b03848"], match: 86, tags: ["Vegan"] },
+  { brand: "Urban Decay", name: "Naked3 Eyeshadow Palette", cat: "Eyes", desc: "12 rose-hued neutral eyeshadows with unparalleled pigment and blendability.", price: 54, swatches: ["#d8a898","#c08878","#a06858","#805048"], match: 95, tags: ["Cruelty-free"] },
+  { brand: "Charlotte Tilbury", name: "Pillow Talk Luxury Palette", cat: "Eyes", desc: "The legendary Luxury Palette in shades designed to make eyes look bigger and brighter.", price: 53, swatches: ["#e8c8b0","#c89080","#a46058","#703040"], match: 92, tags: [] },
+  { brand: "Maybelline", name: "Lash Sensational Sky High", cat: "Eyes", desc: "Bamboo-infused mascara that lengthens, lifts and volumizes without clumping.", price: 13, swatches: ["#101014"], match: 90, tags: ["Budget"] },
+  { brand: "Stila", name: "Stay All Day Waterproof Liquid Liner", cat: "Eyes", desc: "Precise, waterproof liquid eyeliner that delivers richly-saturated color all day.", price: 24, swatches: ["#101014","#3a2818","#5a3018"], match: 88, tags: ["Cruelty-free"] },
+  { brand: "Anastasia Beverly Hills", name: "Brow Wiz", cat: "Eyes", desc: "Ultra-slim retractable brow pencil for naturally defined brows.", price: 25, swatches: ["#2a1810","#4a3020","#6a4830","#8a6848"], match: 87, tags: ["Cruelty-free"] },
+  { brand: "Benefit", name: "Roller Lash Mascara", cat: "Eyes", desc: "Super-curling and lengthening mascara with hook-and-roll bristles.", price: 27, swatches: ["#101014"], match: 85, tags: ["Cruelty-free"] },
+  { brand: "Huda Beauty", name: "Mercury Retrograde Palette", cat: "Eyes", desc: "18 highly pigmented shadows with mattes, shimmers, and duochrome foils.", price: 67, swatches: ["#b08878","#8a5848","#603828","#301810"], match: 83, tags: ["Cruelty-free"] },
+  { brand: "Glossier", name: "Boy Brow", cat: "Eyes", desc: "Cult-favorite brow pomade that grooms, fills, and thickens with a flexible finish.", price: 18, swatches: ["#2a1810","#4a3020","#6a4830"], match: 80, tags: ["Vegan","Cruelty-free"] },
+  { brand: "Lanc\u00f4me", name: "Lash Id\u00f4le Lash-Lifting Mascara", cat: "Eyes", desc: "Lash-lifting, lengthening mascara that creates a false-lash effect in one coat.", price: 28, swatches: ["#101014"], match: 89, tags: [] },
+  { brand: "YSL", name: "Lash Clash Mascara", cat: "Eyes", desc: "Extreme volume, false-lash-effect mascara with intense black pigment.", price: 34, swatches: ["#101014"], match: 88, tags: ["Luxury"] },
+  { brand: "Dior", name: "5 Couleurs Couture Palette", cat: "Eyes", desc: "Five-shade couture eyeshadow palette with luxurious, long-lasting pigments.", price: 72, swatches: ["#d8a898","#c08878","#a06858","#805048"], match: 86, tags: ["Luxury"] },
+  { brand: "Too Faced", name: "Better Than Sex Mascara", cat: "Eyes", desc: "Dramatic volume, length and curl in a single coat. Hourglass-shaped brush.", price: 29, swatches: ["#101014"], match: 84, tags: ["Cruelty-free"] },
+  { brand: "Kat Von D", name: "Tattoo Liner", cat: "Eyes", desc: "24hr wear, waterproof liquid liner with a precise brush tip. Cult favorite.", price: 24, swatches: ["#101014"], match: 85, tags: ["Vegan","Cruelty-free"] },
+  { brand: "Pat McGrath Labs", name: "Mothership Eyeshadow Palette", cat: "Eyes", desc: "Couture quality eyeshadow palette with pigment-saturated shades and luxurious finishes.", price: 128, swatches: ["#d8a898","#c08878","#a06858","#805048"], match: 90, tags: ["Luxury"] },
+  { brand: "Tarte", name: "Tarteist PRO Amazonian Clay Palette", cat: "Eyes", desc: "20-shade eyeshadow palette with mattes and shimmers. Clay-infused for long wear.", price: 54, swatches: ["#d8a898","#c08878","#a06858","#805048"], match: 82, tags: ["Vegan","Cruelty-free"] },
+  { brand: "Benefit", name: "Precisely My Brow Pencil", cat: "Eyes", desc: "Ultra-fine brow-defining pencil with 8 shades to match any brow color.", price: 27, swatches: ["#2a1810","#4a3020","#6a4830","#8a6848"], match: 86, tags: ["Cruelty-free"] },
+  { brand: "Lilah B", name: "Downy Lash Mascara", cat: "Eyes", desc: "Clean beauty mascara that lifts, lengthens and volumizes lashes.", price: 36, swatches: ["#101014"], match: 77, tags: ["Vegan","Clean"] },
+  { brand: "Natasha Denona", name: "Mini Retro Eyeshadow Palette", cat: "Eyes", desc: "5-shade eyeshadow palette with richly pigmented retro-inspired colors.", price: 25, swatches: ["#d8a898","#c08878","#a06858","#805048"], match: 81, tags: ["Luxury"] },
+  { brand: "Colourpop", name: "Super Shock Shadow", cat: "Eyes", desc: "Cream-to-powder eyeshadow with an intense, high-impact metallic finish. Budget favorite.", price: 8, swatches: ["#d8a898","#c08878","#a06858","#805048"], match: 79, tags: ["Vegan","Cruelty-free","Budget"] },
+  { brand: "Viseart", name: "Etendu Palette", cat: "Eyes", desc: "Pro-quality 9-pan palette with buttery-smooth, highly pigmented mattes and satins.", price: 55, swatches: ["#d8a898","#c08878","#a06858","#805048"], match: 85, tags: ["Cruelty-free"] },
+  { brand: "Dior", name: "Rouge Dior Forever", cat: "Lips", desc: "16-hour transfer-proof lipstick with a comfortable, weightless matte finish.", price: 46, swatches: ["#c83850","#a82838","#882030","#681828"], match: 96, tags: ["Luxury"] },
+  { brand: "Charlotte Tilbury", name: "Pillow Talk Matte Revolution", cat: "Lips", desc: "The world's most famous nude-pink lipstick, in a comfortable matte formula.", price: 38, swatches: ["#c88890","#b06870","#985060","#703040"], match: 94, tags: [] },
+  { brand: "Fenty Beauty", name: "Stunna Lip Paint Longwear", cat: "Lips", desc: "Longwear fluid lip colour with intense, lit-from-within pigment and a soft-matte finish.", price: 27, swatches: ["#c83850","#a82838","#882030","#681828"], match: 91, tags: ["Vegan","Cruelty-free"] },
+  { brand: "MAC", name: "Ruby Woo Retro Matte Lipstick", cat: "Lips", desc: "The iconic true-red retro matte lipstick \u2014 a universal shade that flatters all skin tones.", price: 22, swatches: ["#c02030","#a01828"], match: 89, tags: [] },
+  { brand: "NARS", name: "Audacious Lipstick", cat: "Lips", desc: "Creamy, long-lasting lipstick with buildable, full-pigment colour.", price: 38, swatches: ["#c83850","#a82838","#882030","#681828"], match: 87, tags: ["Cruelty-free"] },
+  { brand: "Rare Beauty", name: "Soft Pinch Tinted Lip Oil", cat: "Lips", desc: "Weightless, non-sticky lip oil that tints, hydrates and plumps.", price: 22, swatches: ["#e8a8b0","#d88890","#c86878"], match: 85, tags: ["Vegan","Cruelty-free","Silicone-free"] },
+  { brand: "Glossier", name: "Balm Dotcom", cat: "Lips", desc: "Universal skin salve and lip balm with natural ingredients. Mild, nourishing, and long-lasting.", price: 15, swatches: ["#f0d8c8","#e8c0a8","#d89080"], match: 82, tags: ["Vegan","Cruelty-free","Silicone-free"] },
+  { brand: "Laneige", name: "Lip Sleeping Mask", cat: "Lips", desc: "Overnight lip treatment with vitamin C and antioxidants for soft, smooth lips by morning.", price: 24, swatches: ["#e8a8b0","#d88890","#c86878"], match: 80, tags: ["K-Beauty"] },
+  { brand: "YSL", name: "Rouge Pur Couture Lipstick", cat: "Lips", desc: "Iconic satin-finish lipstick with rich pigment and a comfortable, hydrating feel.", price: 42, swatches: ["#c83850","#a82838","#882030","#681828"], match: 88, tags: ["Luxury"] },
+  { brand: "Chanel", name: "Rouge Allure Velvet", cat: "Lips", desc: "Intense long-wear lip color with a luminous matte effect. Iconic finish.", price: 48, swatches: ["#c83850","#a82838","#882030","#681828"], match: 86, tags: ["Luxury"] },
+  { brand: "Clinique", name: "Chubby Stick Moisturizing Balm", cat: "Lips", desc: "Hydrating, sheer lip color in a chunky pencil form. Long-lasting and moisturizing.", price: 21, swatches: ["#e8a8b0","#d88890","#c86878"], match: 79, tags: ["Fragrance-free"] },
+  { brand: "Too Faced", name: "Lip Injection Plumping Gloss", cat: "Lips", desc: "Spicy lip plumper gloss that temporarily plumps lips for fuller, juicier pout.", price: 28, swatches: ["#e8a8b0","#d88890","#c86878"], match: 83, tags: ["Cruelty-free"] },
+  { brand: "Dior", name: "Addict Lip Glow", cat: "Lips", desc: "Color-reviving lip balm that delivers a personalized color based on your lips pH.", price: 36, swatches: ["#e8a8b0","#d88890","#c86878"], match: 90, tags: ["Luxury"] },
+  { brand: "Kylie Cosmetics", name: "Matte Liquid Lipstick", cat: "Lips", desc: "Full-coverage matte liquid lipstick with 6-hour wear and a creamy, comfortable finish.", price: 17, swatches: ["#c83850","#a82838","#882030","#681828"], match: 81, tags: ["Vegan"] },
+  { brand: "Maybelline", name: "SuperStay Matte Ink", cat: "Lips", desc: "16hr liquid matte lipstick with arrow-precision applicator. Budget-friendly long wear.", price: 10, swatches: ["#c83850","#a82838","#882030","#681828"], match: 84, tags: ["Budget"] },
+  { brand: "Buxom", name: "Full-On Plumping Lip Polish", cat: "Lips", desc: "Buildable shine lip polish that plumps with a tingling peppermint sensation.", price: 23, swatches: ["#e8a8b0","#d88890","#c86878"], match: 78, tags: ["Cruelty-free"] },
+  { brand: "Anastasia Beverly Hills", name: "Liquid Lipstick", cat: "Lips", desc: "Highly pigmented liquid lipstick with an ultra-matte, long-lasting finish.", price: 20, swatches: ["#c83850","#a82838","#882030","#681828"], match: 82, tags: ["Cruelty-free"] },
+  { brand: "ILIA", name: "Color Block High Impact Lipstick", cat: "Lips", desc: "Clean, bold-color lipstick with shea butter and organic mango seed butter.", price: 28, swatches: ["#c83850","#a82838","#882030","#681828"], match: 80, tags: ["Vegan","Clean","Cruelty-free","Silicone-free","Fragrance-free"] },
+  { brand: "The Ordinary", name: "Niacinamide 10% + Zinc 1%", cat: "Skincare", desc: "High-strength vitamin and mineral blemish formula that reduces the appearance of pores and balances sebum.", price: 7, swatches: ["#f8f4ec"], match: 97, tags: ["Vegan","Clean","Budget","Silicone-free","Fragrance-free","Cruelty-free"] },
+  { brand: "CeraVe", name: "Moisturizing Cream", cat: "Skincare", desc: "Rich, non-greasy moisturizer with three essential ceramides and hyaluronic acid for 24hr hydration.", price: 17, swatches: ["#f8f4ec"], match: 95, tags: ["Dermatologist-tested","Fragrance-free","Paraben-free"] },
+  { brand: "La Roche-Posay", name: "Anthelios UV Correct SPF 70", cat: "Skincare", desc: "Daily anti-aging face sunscreen with broad-spectrum protection and niacinamide.", price: 33, swatches: ["#f4e8d0"], match: 93, tags: ["SPF 70","Dermatologist-tested","Fragrance-free","Paraben-free"] },
+  { brand: "Paula's Choice", name: "2% BHA Liquid Exfoliant", cat: "Skincare", desc: "Leave-on salicylic acid exfoliant that unclogs pores, smooths wrinkles and evens skin tone.", price: 35, swatches: ["#f0e8dc"], match: 91, tags: ["Cruelty-free","Fragrance-free","Paraben-free"] },
+  { brand: "Drunk Elephant", name: "C-Firma Fresh Vitamin C Day Serum", cat: "Skincare", desc: "Potent antioxidant day serum with 15% L-ascorbic acid to firm, brighten and improve signs of aging.", price: 78, swatches: ["#f4d8a0"], match: 89, tags: ["Clean","Fragrance-free","Silicone-free","Cruelty-free"] },
+  { brand: "Glow Recipe", name: "Watermelon Glow Niacinamide Dew Drops", cat: "Skincare", desc: "Hydrating serum-highlighter hybrid with watermelon, niacinamide and hyaluronic acid.", price: 35, swatches: ["#f8d0c0"], match: 87, tags: ["Vegan","Clean","K-Beauty"] },
+  { brand: "Sunday Riley", name: "Good Genes Lactic Acid Treatment", cat: "Skincare", desc: "Lactic acid treatment that plumps, radiance-boosts and minimizes the look of pores.", price: 85, swatches: ["#f4e8c8"], match: 85, tags: ["Cruelty-free"] },
+  { brand: "Tatcha", name: "The Dewy Skin Cream", cat: "Skincare", desc: "Plumping and hydrating moisturizer that floods skin with 24-hour hydration for a dewy glow.", price: 72, swatches: ["#f8e8d0"], match: 82, tags: ["Luxury","Clean"] },
+  { brand: "Olay", name: "Regenerist Micro-Sculpting Cream", cat: "Skincare", desc: "Anti-aging moisturizer with amino-peptides and niacinamide. Firms, plumps and smooths wrinkles.", price: 35, swatches: ["#f8f4ec"], match: 88, tags: ["Dermatologist-tested"] },
+  { brand: "Est\u00e9e Lauder", name: "Advanced Night Repair Serum", cat: "Skincare", desc: "Iconic overnight multi-recovery complex serum with hyaluronic acid for firmer, youthful skin.", price: 78, swatches: ["#f4d8a0"], match: 92, tags: ["Luxury"] },
+  { brand: "SkinCeuticals", name: "C E Ferulic Antioxidant Serum", cat: "Skincare", desc: "15% L-ascorbic acid with vitamin E and ferulic acid \u2014 gold-standard antioxidant serum.", price: 182, swatches: ["#f4d8a0"], match: 90, tags: ["Luxury","Dermatologist-tested","Fragrance-free","Paraben-free","Silicone-free"] },
+  { brand: "The Inkey List", name: "Hyaluronic Acid Serum", cat: "Skincare", desc: "Plumping, hydrating hyaluronic acid serum at a budget price.", price: 8, swatches: ["#f8f4ec"], match: 84, tags: ["Vegan","Cruelty-free","Budget","Fragrance-free","Silicone-free"] },
+  { brand: "Clinique", name: "Moisture Surge 100H", cat: "Skincare", desc: "100-hour auto-replenishing hydrator moisturizer with hyaluronic acid and aloe extract.", price: 42, swatches: ["#f8f4ec"], match: 86, tags: ["Fragrance-free"] },
+  { brand: "COSRX", name: "Snail 96 Mucin Power Essence", cat: "Skincare", desc: "96.3% snail secretion filtrate for intense hydration, brightening and healing.", price: 19, swatches: ["#f8f4ec"], match: 88, tags: ["K-Beauty","Cruelty-free","Fragrance-free","Paraben-free"] },
+  { brand: "Kiehl's", name: "Ultra Facial Cream", cat: "Skincare", desc: "24-hour hydrating cream with squalane and glacial glycoprotein for balanced moisture.", price: 38, swatches: ["#f8f4ec"], match: 85, tags: ["Dermatologist-tested"] },
+  { brand: "Vichy", name: "Mineral 89 Hyaluronic Acid Booster", cat: "Skincare", desc: "Daily hydrating, strengthening serum with Vichy volcanic water and hyaluronic acid.", price: 32, swatches: ["#f8f4ec"], match: 83, tags: ["Fragrance-free"] },
+  { brand: "Beauty of Joseon", name: "Glow Deep Serum", cat: "Skincare", desc: "Brightening serum with rice extract and alpha-arbutin for glowing, even-toned skin.", price: 18, swatches: ["#f4e8c8"], match: 87, tags: ["K-Beauty","Vegan","Fragrance-free","Cruelty-free"] },
+  { brand: "Supergoop!", name: "Unseen Sunscreen SPF 40", cat: "Skincare", desc: "Invisible, weightless, scent-free sunscreen that doubles as a makeup primer.", price: 38, swatches: ["#f8f4ec"], match: 89, tags: ["SPF 40","Vegan","Clean","Fragrance-free","Cruelty-free"] },
+  { brand: "Youth To The People", name: "Superfood Cleanser", cat: "Skincare", desc: "Vitamin-packed gel cleanser with kale, spinach, green tea and vitamin C.", price: 36, swatches: ["#f8f4ec"], match: 82, tags: ["Vegan","Clean","Cruelty-free"] },
+  { brand: "Neutrogena", name: "Hydro Boost Water Gel", cat: "Skincare", desc: "Lightweight water-gel moisturizer with hyaluronic acid. Non-comedogenic, oil-free.", price: 20, swatches: ["#f8f4ec"], match: 81, tags: ["Dermatologist-tested","Budget","Fragrance-free","Paraben-free"] },
+  { brand: "Smashbox", name: "Photo Finish Original Primer", cat: "Primer", desc: "Iconic pore-blurring primer that creates a smooth canvas for flawless, long-lasting makeup.", price: 39, swatches: ["#f0e4d0","#f4dcc0","#f4d8c0"], match: 96, tags: ["Vegan","Cruelty-free"] },
+  { brand: "Charlotte Tilbury", name: "Wonderglow Face Primer", cat: "Primer", desc: "Instant youth-boosting primer that smoothes, hydrates and adds a luminous glow.", price: 55, swatches: ["#f0e4d0","#f4dcc0","#f4d8c0"], match: 93, tags: [] },
+  { brand: "Milk Makeup", name: "Hydro Grip Primer", cat: "Primer", desc: "Hydrating, clean primer that grips makeup in place for up to 12 hours.", price: 36, swatches: ["#f0e4d0","#f4dcc0","#f4d8c0"], match: 91, tags: ["Vegan","Clean","Silicone-free","Cruelty-free"] },
+  { brand: "e.l.f.", name: "Power Grip Primer", cat: "Primer", desc: "Budget-friendly gel-based primer that grips makeup and hydrates with hyaluronic acid.", price: 10, swatches: ["#f0e4d0","#f4dcc0","#f4d8c0"], match: 88, tags: ["Vegan","Cruelty-free","Budget"] },
+  { brand: "NARS", name: "Light Reflecting Prism Primer", cat: "Primer", desc: "Glow-boosting primer that blurs, brightens and preps for a radiant, luminous finish.", price: 47, swatches: ["#f0e4d0","#f4dcc0","#f4d8c0"], match: 86, tags: ["Cruelty-free"] },
+  { brand: "Urban Decay", name: "All Nighter Face Primer", cat: "Primer", desc: "Long-wearing primer that extends makeup wear up to 16 hours with a velvety matte finish.", price: 37, swatches: ["#f0e4d0","#f4dcc0","#f4d8c0"], match: 83, tags: ["Vegan","Cruelty-free"] },
+  { brand: "Tarte", name: "Poreless Mattifying Primer", cat: "Primer", desc: "Oil-free primer that minimizes the look of pores and controls shine all day.", price: 32, swatches: ["#f0e4d0","#f4dcc0","#f4d8c0"], match: 80, tags: ["Vegan","Cruelty-free"] },
+  { brand: "Maybelline", name: "Baby Skin Instant Pore Eraser", cat: "Primer", desc: "Budget pore-blurring primer with a lightweight, smooth-to-the-touch finish.", price: 8, swatches: ["#f0e4d0","#f4dcc0","#f4d8c0"], match: 78, tags: ["Budget"] },
+  { brand: "Benefit", name: "The POREfessional Primer", cat: "Primer", desc: "Silky-smooth pore-minimizing primer that blurs away imperfections.", price: 33, swatches: ["#f0e4d0","#f4dcc0","#f4d8c0"], match: 87, tags: ["Cruelty-free"] },
+  { brand: "Hourglass", name: "Veil Mineral Primer", cat: "Primer", desc: "Long-wearing primer with SPF 15 that creates a smooth canvas and extends makeup wear.", price: 58, swatches: ["#f0e4d0","#f4dcc0","#f4d8c0"], match: 84, tags: ["Vegan","Luxury","SPF 15"] },
+  { brand: "Too Faced", name: "Hangover Primer", cat: "Primer", desc: "Replenishing, hydrating primer with coconut water for a radiant, nourished finish.", price: 36, swatches: ["#f0e4d0","#f4dcc0","#f4d8c0"], match: 82, tags: ["Cruelty-free"] },
+  { brand: "Dior", name: "Forever Skin Veil Primer", cat: "Primer", desc: "Hydrating, glow-boosting base that enhances and prolongs foundation wear.", price: 52, swatches: ["#f0e4d0","#f4dcc0","#f4d8c0"], match: 85, tags: ["Luxury"] },
+  { brand: "Laneige", name: "Glowy Makeup Serum", cat: "Primer", desc: "Radiance-boosting primer-serum hybrid with niacinamide and peach extract.", price: 29, swatches: ["#f0e4d0","#f4dcc0","#f4d8c0"], match: 81, tags: ["K-Beauty","Fragrance-free"] },
+  { brand: "Becca", name: "First Light Priming Filter", cat: "Primer", desc: "Blurring, illuminating primer with rose and yellow pearls for a fresh, lit-from-within complexion.", price: 38, swatches: ["#f0e4d0","#f4dcc0","#f4d8c0"], match: 79, tags: ["Cruelty-free"] },
+  // --- Additional silicone-free / fragrance-free products ---
+  { brand: "Saie", name: "Glowy Super Gel Liquid Highlighter", cat: "Blush & Bronzer", desc: "Dewy, skin-like liquid highlighter with squalane and aloe. Clean, weightless finish.", price: 30, swatches: ["#f4d8b0","#eccc98","#e0b870"], match: 84, tags: ["Vegan","Clean","Cruelty-free","Silicone-free","Fragrance-free"] },
+  { brand: "RMS Beauty", name: "Lip2Cheek", cat: "Blush & Bronzer", desc: "Organic cream blush-meets-lip color made with coconut oil and natural pigments.", price: 36, swatches: ["#e08878","#d46868","#c45060"], match: 82, tags: ["Vegan","Clean","Cruelty-free","Silicone-free","Fragrance-free"] },
+  { brand: "Ere Perez", name: "Oat Milk Foundation", cat: "Foundation", desc: "Lightweight, buildable liquid foundation with oat milk, aloe and jojoba for a natural finish.", price: 44, swatches: ["#f4dcc8","#ecd4c0","#e4cbb8","#c89060"], match: 83, tags: ["Vegan","Clean","Cruelty-free","Silicone-free","Fragrance-free"] },
+  { brand: "Westman Atelier", name: "Vital Skin Foundation Stick", cat: "Foundation", desc: "Clean, skin-like foundation stick with hyaluronic acid and camellia oil. Buildable, dewy finish.", price: 72, swatches: ["#f6e4ce","#f2dcc2","#ecd4b8","#e6ccae"], match: 88, tags: ["Luxury","Clean","Cruelty-free","Silicone-free","Fragrance-free"] },
+  { brand: "Tower 28", name: "SunnyDays SPF 30 Tinted Sunscreen Foundation", cat: "Foundation", desc: "Mineral SPF 30 tinted sunscreen with a light, skin-like finish. NEA accepted for sensitive skin.", price: 32, swatches: ["#f6e4ce","#f2dcc2","#ecd4b8"], match: 85, tags: ["SPF 30","Vegan","Clean","Cruelty-free","Silicone-free","Fragrance-free"] },
+  { brand: "Jones Road", name: "What The Foundation", cat: "Foundation", desc: "Sheer, skin-like tinted moisturizer-foundation hybrid with jojoba oil. Weightless natural finish.", price: 42, swatches: ["#f6e4ce","#f2dcc2","#ecd4b8","#e6ccae"], match: 84, tags: ["Clean","Cruelty-free","Silicone-free","Fragrance-free"] },
+  { brand: "Saie", name: "Slip Tint Dewy Tinted Moisturizer", cat: "Foundation", desc: "Lightweight SPF 35 tinted moisturizer with squalane and hyaluronic acid. Natural dewy glow.", price: 38, swatches: ["#f6e4ce","#f2dcc2","#ecd4b8"], match: 83, tags: ["SPF 35","Vegan","Clean","Cruelty-free","Silicone-free","Fragrance-free"] },
+  { brand: "Kosas", name: "Concealer Revealer Super Creamy Brightening Eye Cream", cat: "Concealer", desc: "Hydrating, buildable under-eye concealer with caffeine, peptides and hyaluronic acid.", price: 30, swatches: ["#f8e4cc","#f4dcc0","#ecd2b4","#e4c8a8"], match: 86, tags: ["Vegan","Clean","Cruelty-free","Silicone-free","Fragrance-free"] },
+  { brand: "Saie", name: "Glossybounce Lip Oil", cat: "Lips", desc: "Plumping, shine-boosting lip oil with meadowfoam seed oil and peptides. Non-sticky.", price: 22, swatches: ["#e8a8b0","#d88890","#c86878"], match: 83, tags: ["Vegan","Clean","Cruelty-free","Silicone-free","Fragrance-free"] },
+  { brand: "Vacation", name: "Chardonnay Oil Lip Balm", cat: "Lips", desc: "Luxe, non-sticky lip oil with chardonnay grape seed extract and vitamin E.", price: 18, swatches: ["#e8a8b0","#d88890"], match: 80, tags: ["Vegan","Clean","Cruelty-free","Silicone-free","Fragrance-free"] },
+  { brand: "Bioderma", name: "Sensibio H2O Micellar Water", cat: "Skincare", desc: "Gentle cleansing micellar water for sensitive skin. Fragrance-free and dermatologist-tested.", price: 16, swatches: ["#f8f4ec"], match: 92, tags: ["Dermatologist-tested","Fragrance-free","Paraben-free","Silicone-free"] },
+  { brand: "Avene", name: "Thermal Spring Water Mist", cat: "Skincare", desc: "Ultra-gentle thermal spring water mist to soothe, calm and refresh sensitive skin.", price: 14, swatches: ["#f8f4ec"], match: 88, tags: ["Dermatologist-tested","Fragrance-free","Paraben-free","Silicone-free"] },
+  { brand: "First Aid Beauty", name: "Ultra Repair Cream", cat: "Skincare", desc: "Intense hydration cream for dry, distressed and eczema-prone skin. Colloidal oatmeal formula.", price: 38, swatches: ["#f8f4ec"], match: 87, tags: ["Dermatologist-tested","Fragrance-free","Paraben-free","Cruelty-free"] },
+  { brand: "Weleda", name: "Skin Food", cat: "Skincare", desc: "Cult-classic rich moisturizer with calendula, chamomile and rosemary extracts. Deeply nourishing.", price: 20, swatches: ["#f8f4ec"], match: 83, tags: ["Clean","Cruelty-free","Silicone-free","Paraben-free"] },
+  { brand: "Youth To The People", name: "Dream Eye Cream", cat: "Skincare", desc: "Hydrating overnight eye cream with squalane, niacinamide and prebiotics.", price: 42, swatches: ["#f8f4ec"], match: 84, tags: ["Vegan","Clean","Cruelty-free","Fragrance-free","Silicone-free"] },
+  { brand: "Krave Beauty", name: "Great Barrier Relief", cat: "Skincare", desc: "Tamanu-oil-based serum to soothe, strengthen and repair the skin barrier.", price: 28, swatches: ["#f4e8c8"], match: 85, tags: ["Vegan","Clean","Cruelty-free","Fragrance-free","Silicone-free"] },
+  { brand: "Pai Skincare", name: "The Light Fantastic De-Stressing Light Serum", cat: "Skincare", desc: "Calming, brightening serum with ceramides and copper peptides for sensitive skin.", price: 62, swatches: ["#f8f4ec"], match: 82, tags: ["Vegan","Clean","Cruelty-free","Fragrance-free","Silicone-free","Paraben-free"] },
+  { brand: "Ilia Beauty", name: "Fade Into You Blush", cat: "Blush & Bronzer", desc: "Buildable, skin-like cream blush with jojoba and hyaluronic acid for a fresh flush.", price: 36, swatches: ["#e08878","#d46868","#c45060","#a43848"], match: 87, tags: ["Vegan","Clean","Cruelty-free","Silicone-free","Fragrance-free","Paraben-free"] },
+];
+
+window.LUMA_CATEGORIES = ['Foundation','Concealer','Blush & Bronzer','Eyes','Lips','Skincare','Primer'];
+
+window.LUMA_CONCERNS = ['Acne','Dryness','Oiliness','Redness','Hyperpigmentation','Fine Lines','Dark Circles','Pores'];
+window.LUMA_PREFS = [
+  { id: 'vegan', label: 'Vegan' },
+  { id: 'cruelty', label: 'Cruelty-free' },
+  { id: 'silicone', label: 'Silicone-free' },
+  { id: 'paraben', label: 'Paraben-free' },
+  { id: 'fragrance', label: 'Fragrance-free' },
+  { id: 'spf', label: 'SPF' },
+];
+
+</script>
+<!-- =========================================================================
+     Supabase client  +  LumaAuth manager
+     -------------------------------------------------------------------------
+     • Free-tier Supabase (500 MB Postgres + 50k MAU, no credit card).
+     • We store DERIVED data only (face shape, tone, prefs, saved products).
+       No face image / landmarks / biometric template ever leaves the browser.
+     • Auth: email + 6-digit PIN (Supabase requires min 6 chars → PIN fits).
+     • Graceful degrade: if the two constants below are left blank, the app
+       still works offline — auth + persistence just become no-ops.
+     ======================================================================== -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+/* global window, supabase */
+(function(){
+  // ---- 1. PROJECT CONFIG --------------------------------------------------
+  // Paste your values from Supabase Dashboard → Project Settings → API.
+  // Leave blank to run LUMA fully offline (no cloud profile / no sync).
+  window.LUMA_SUPABASE_URL      = window.LUMA_SUPABASE_URL      || 'https://nrktiytgofoxeonhmeln.supabase.co';
+  window.LUMA_SUPABASE_ANON_KEY = window.LUMA_SUPABASE_ANON_KEY || 'sb_publishable_iIMLR6tt25emvO1vX3hdAQ_SLjBvqT0';
+
+  // ---- 2. CLIENT (lazy) ---------------------------------------------------
+  let _client = null;
+  let _warned = false;
+  function isConfigured(){
+    return !!(window.LUMA_SUPABASE_URL && window.LUMA_SUPABASE_ANON_KEY);
+  }
+  function getClient(){
+    if (_client) return _client;
+    if (!isConfigured()) {
+      if (!_warned) {
+        _warned = true;
+        console.info('[LUMA] Supabase not configured — running offline. '+
+          'Set LUMA_SUPABASE_URL + LUMA_SUPABASE_ANON_KEY to enable profiles.');
+      }
+      return null;
+    }
+    if (!window.supabase || !window.supabase.createClient) {
+      console.warn('[LUMA] supabase-js not loaded yet.');
+      return null;
+    }
+    _client = window.supabase.createClient(
+      window.LUMA_SUPABASE_URL,
+      window.LUMA_SUPABASE_ANON_KEY,
+      { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false } }
+    );
+    return _client;
+  }
+
+  // ---- 3. AUTH HELPERS ----------------------------------------------------
+  function normEmail(e){ return (e||'').trim().toLowerCase(); }
+  function validEmail(e){ return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e); }
+  function validPin(p){ return /^\d{6}$/.test(p||''); }
+
+  async function signUp(email, pin, extra){
+    const c = getClient();
+    if (!c) return { error: { message: 'Cloud profile not configured.' } };
+    email = normEmail(email);
+    if (!validEmail(email)) return { error: { message: 'Please enter a valid email.' } };
+    if (!validPin(pin))     return { error: { message: 'PIN must be exactly 6 digits.' } };
+    const { data, error } = await c.auth.signUp({
+      email, password: pin,
+      options: { data: extra || {} }
+    });
+    return { data, error };
+  }
+  async function signIn(email, pin){
+    const c = getClient();
+    if (!c) return { error: { message: 'Cloud profile not configured.' } };
+    email = normEmail(email);
+    if (!validEmail(email)) return { error: { message: 'Please enter a valid email.' } };
+    if (!validPin(pin))     return { error: { message: 'PIN must be exactly 6 digits.' } };
+    const { data, error } = await c.auth.signInWithPassword({ email, password: pin });
+    return { data, error };
+  }
+  async function signOut(){
+    const c = getClient(); if (!c) return;
+    await c.auth.signOut();
+  }
+  async function getSession(){
+    const c = getClient(); if (!c) return null;
+    const { data } = await c.auth.getSession();
+    return data && data.session || null;
+  }
+  async function getUser(){
+    const s = await getSession();
+    return s && s.user || null;
+  }
+  function onAuthChange(cb){
+    const c = getClient(); if (!c) return () => {};
+    const { data } = c.auth.onAuthStateChange((event, session) => cb(session, event));
+    return () => { try { data.subscription.unsubscribe(); } catch(_){} };
+  }
+
+  // ---- 4. DATA HELPERS (profiles / scans / prefs / saved_products) --------
+  async function getProfile(){
+    const c = getClient(); const u = await getUser();
+    if (!c || !u) return null;
+    const { data } = await c.from('profiles').select('*').eq('id', u.id).maybeSingle();
+    return data || null;
+  }
+  async function updateProfile(patch){
+    const c = getClient(); const u = await getUser();
+    if (!c || !u) return { error: { message: 'Not signed in.' } };
+    const { data, error } = await c.from('profiles').update(patch).eq('id', u.id).select().maybeSingle();
+    return { data, error };
+  }
+
+  // Strips any accidental image/landmark fields just in case.
+  function sanitizeScan(s){
+    if (!s || typeof s !== 'object') return {};
+    const out = {};
+    const allow = [
+      'face_shape','face_shape_sub',
+      'tone_id','tone_name','tone_color','tone_undertone','ita','confidence',
+      'skin_type','skin_type_sub',
+      'liveness','expression','age'
+    ];
+    allow.forEach(k => { if (s[k] !== undefined) out[k] = s[k]; });
+    return out;
+  }
+  async function insertScan(scan){
+    const c = getClient(); const u = await getUser();
+    if (!c || !u) return { error: { message: 'Not signed in.' } };
+    const row = Object.assign({ profile_id: u.id }, sanitizeScan(scan));
+    const { data, error } = await c.from('scans').insert(row).select().maybeSingle();
+    return { data, error };
+  }
+  async function listScans(limit){
+    const c = getClient(); const u = await getUser();
+    if (!c || !u) return [];
+    const { data } = await c.from('scans')
+      .select('*').eq('profile_id', u.id)
+      .order('created_at', { ascending: false })
+      .limit(Math.max(1, Math.min(100, limit||20)));
+    return data || [];
+  }
+  async function latestScan(){
+    const rows = await listScans(1);
+    return rows[0] || null;
+  }
+
+  async function getPreferences(){
+    const c = getClient(); const u = await getUser();
+    if (!c || !u) return null;
+    const { data } = await c.from('preferences').select('*').eq('profile_id', u.id).maybeSingle();
+    return data || null;
+  }
+  async function upsertPreferences(patch){
+    const c = getClient(); const u = await getUser();
+    if (!c || !u) return { error: { message: 'Not signed in.' } };
+    const row = Object.assign({ profile_id: u.id, updated_at: new Date().toISOString() }, patch || {});
+    const { data, error } = await c.from('preferences').upsert(row).select().maybeSingle();
+    return { data, error };
+  }
+
+  async function listSavedProducts(){
+    const c = getClient(); const u = await getUser();
+    if (!c || !u) return [];
+    const { data } = await c.from('saved_products')
+      .select('*').eq('profile_id', u.id)
+      .order('saved_at', { ascending: false });
+    return data || [];
+  }
+  async function addSavedProduct(brand, name){
+    const c = getClient(); const u = await getUser();
+    if (!c || !u) return { error: { message: 'Not signed in.' } };
+    const { data, error } = await c.from('saved_products')
+      .upsert({ profile_id: u.id, brand, name }).select().maybeSingle();
+    return { data, error };
+  }
+  async function removeSavedProduct(brand, name){
+    const c = getClient(); const u = await getUser();
+    if (!c || !u) return { error: { message: 'Not signed in.' } };
+    const { error } = await c.from('saved_products')
+      .delete()
+      .eq('profile_id', u.id).eq('brand', brand).eq('name', name);
+    return { error };
+  }
+
+  // ---- 5. EXPORT ----------------------------------------------------------
+  window.LumaAuth = {
+    isConfigured, getClient,
+    signUp, signIn, signOut, getSession, getUser, onAuthChange,
+    getProfile, updateProfile,
+    insertScan, listScans, latestScan,
+    getPreferences, upsertPreferences,
+    listSavedProducts, addSavedProduct, removeSavedProduct,
+    // utils (exposed for UI validation)
+    validEmail, validPin, normEmail,
+  };
+})();
+</script>
+<script type="text/babel" data-presets="react" data-label="Nav">
+(function(){
+/* global React */
+const { useState, useEffect, useRef } = React;
+
+function initialOf(email){
+  if (!email) return '?';
+  const c = email.trim()[0];
+  return c ? c.toUpperCase() : '?';
+}
+
+function Nav({ user, route, onNavigate, onRequestSignIn, onSignOut }) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [authMenuOpen, setAuthMenuOpen] = useState(false);
+  const close = () => setMenuOpen(false);
+  const authMenuRef = useRef(null);
+
+  // Close mobile menu when viewport grows beyond mobile breakpoint
+  useEffect(() => {
+    function onResize() { if (window.innerWidth > 640) setMenuOpen(false); }
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  // Close on Escape
+  useEffect(() => {
+    function onKey(e){ if(e.key === 'Escape') { setMenuOpen(false); setAuthMenuOpen(false); } }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  // Close auth menu on outside click
+  useEffect(() => {
+    if (!authMenuOpen) return;
+    function onDoc(e){
+      if (authMenuRef.current && !authMenuRef.current.contains(e.target)) setAuthMenuOpen(false);
+    }
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, [authMenuOpen]);
+
+  function nav(target, e){
+    if (e) e.preventDefault();
+    close();
+    setAuthMenuOpen(false);
+    onNavigate && onNavigate(target);
+  }
+
+  function handleProfileClick(e){
+    if (e) e.preventDefault();
+    close();
+    if (user) onNavigate && onNavigate('profile');
+    else onRequestSignIn && onRequestSignIn('signin');
+  }
+
+  return (
+    <nav className="luma-nav">
+      <a className="luma-logo" href="#" onClick={(e)=>nav('home', e)}>L<span>UM</span>A</a>
+      <ul className={'luma-nav-links' + (menuOpen ? ' open' : '')}>
+        <li><a href="#" onClick={(e)=>nav('home', e)}>Scanner</a></li>
+        <li><a href="#" onClick={(e)=>nav('home', e)}>Products</a></li>
+        <li><a href="#" onClick={(e)=>nav('home', e)}>Brands</a></li>
+        <li><a href="#" onClick={handleProfileClick}>My Profile</a></li>
+      </ul>
+      <span className="luma-badge">✦ AI Powered</span>
+
+      <div className="nav-auth" ref={authMenuRef}>
+        {user ? (
+          <>
+            <button className="nav-auth-chip" onClick={()=>setAuthMenuOpen(o=>!o)} aria-haspopup="true" aria-expanded={authMenuOpen}>
+              <span className="nav-auth-avatar">{initialOf(user.email)}</span>
+              <span className="nav-auth-email">{user.email}</span>
+              <span className="nav-auth-caret">▾</span>
+            </button>
+            {authMenuOpen && (
+              <div className="nav-auth-menu" role="menu">
+                <div className="nav-auth-menu-email">{user.email}</div>
+                <button role="menuitem" onClick={()=>{setAuthMenuOpen(false); onNavigate && onNavigate('profile');}}>My Profile</button>
+                <button role="menuitem" onClick={()=>{setAuthMenuOpen(false); onNavigate && onNavigate('home');}}>Scanner</button>
+                <button role="menuitem" className="danger" onClick={()=>{setAuthMenuOpen(false); onSignOut && onSignOut();}}>Sign out</button>
+              </div>
+            )}
+          </>
+        ) : (
+          <button className="nav-auth-btn" onClick={()=>onRequestSignIn && onRequestSignIn('signin')}>Sign in</button>
+        )}
+      </div>
+
+      <button
+        className="nav-hamburger"
+        aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+        aria-expanded={menuOpen}
+        onClick={() => setMenuOpen(o => !o)}>
+        {menuOpen ? (
+          <svg viewBox="0 0 24 24"><path d="M6 6L18 18M6 18L18 6"/></svg>
+        ) : (
+          <svg viewBox="0 0 24 24"><path d="M4 7H20M4 12H20M4 17H20"/></svg>
+        )}
+      </button>
+    </nav>
+  );
+}
+
+window.LumaNav = Nav;
+
+})();
+</script>
+<script type="text/babel" data-presets="react" data-label="Scanner+real-analysis">
+(function(){
+/* global React, faceapi */
+const { useState, useEffect, useRef, useCallback } = React;
+
+// ============================================================================
+// REAL SCANNER — color science + face-api.js
+// ============================================================================
+
+// ── Skin detection (YCbCr + HSV) ─────────────────────────────────────────────
+function isSkin(r,g,b){
+  const y  = 0.299*r + 0.587*g + 0.114*b;
+  const cb = 128 + (-0.168736*r - 0.331264*g + 0.5*b);
+  const cr = 128 + (0.5*r - 0.418688*g - 0.081312*b);
+  const ycbcr = cb>=77 && cb<=127 && cr>=133 && cr<=173;
+  const max = Math.max(r,g,b), min = Math.min(r,g,b);
+  const v = max/255;
+  const s = max===0?0:(max-min)/max;
+  const hsv = v>0.25 && s>=0.08 && s<=0.68;
+  return ycbcr && hsv;
+}
+// ── CIELab + ITA ─────────────────────────────────────────────────────────────
+function rgbToLab(r,g,b){
+  let R=r/255,G=g/255,B=b/255;
+  R = R>0.04045 ? Math.pow((R+0.055)/1.055,2.4) : R/12.92;
+  G = G>0.04045 ? Math.pow((G+0.055)/1.055,2.4) : G/12.92;
+  B = B>0.04045 ? Math.pow((B+0.055)/1.055,2.4) : B/12.92;
+  const X=(R*0.4124+G*0.3576+B*0.1805)/0.95047;
+  const Y=(R*0.2126+G*0.7152+B*0.0722)/1.00000;
+  const Z=(R*0.0193+G*0.1192+B*0.9505)/1.08883;
+  const f=t=>t>0.008856?Math.cbrt(t):(7.787*t+16/116);
+  const fx=f(X),fy=f(Y),fz=f(Z);
+  return {L:116*fy-16, a:500*(fx-fy), b:200*(fy-fz)};
+}
+function deltaE(l1,l2){
+  return Math.sqrt((l1.L-l2.L)**2+(l1.a-l2.a)**2+(l1.b-l2.b)**2);
+}
+function itaLabel(ita){
+  if(ita>55) return 'Very Light';
+  if(ita>41) return 'Light';
+  if(ita>28) return 'Intermediate';
+  if(ita>10) return 'Tan';
+  if(ita>-30) return 'Brown';
+  return 'Dark';
+}
+
+// ── Exposure correction ──────────────────────────────────────────────────────
+function correctExposure(pixels){
+  if(!pixels.length) return pixels;
+  const lums = pixels.map(p=>0.299*p.r+0.587*p.g+0.114*p.b);
+  const median = lums.sort((a,b)=>a-b)[Math.floor(lums.length/2)];
+  const target = 185;
+  if(median > target - 15) return pixels;
+  const factor = Math.min(1.35, target/Math.max(80,median));
+  return pixels.map(p=>({
+    r: Math.min(255, Math.round(p.r*factor)),
+    g: Math.min(255, Math.round(p.g*factor)),
+    b: Math.min(255, Math.round(p.b*factor)),
+  }));
+}
+function sampleRect(data, imgW, x, y, w, h){
+  const out = [];
+  for(let dy=0; dy<h; dy++){
+    for(let dx=0; dx<w; dx++){
+      const i = ((y+dy)*imgW+(x+dx))*4;
+      const r=data[i], g=data[i+1], b=data[i+2];
+      if(isSkin(r,g,b)) out.push({r,g,b});
+    }
+  }
+  return out;
+}
+function processPixels(pixels, minPx=30){
+  if(pixels.length<minPx) return null;
+  const sorted=[...pixels].sort((a,b)=>
+    (0.299*a.r+0.587*a.g+0.114*a.b)-(0.299*b.r+0.587*b.g+0.114*b.b));
+  const lo=Math.floor(sorted.length*0.10);
+  const hi=Math.ceil(sorted.length*0.95);
+  const tr=sorted.slice(lo,hi);
+  if(!tr.length) return null;
+  return {
+    r: Math.round(tr.reduce((s,p)=>s+p.r,0)/tr.length),
+    g: Math.round(tr.reduce((s,p)=>s+p.g,0)/tr.length),
+    b: Math.round(tr.reduce((s,p)=>s+p.b,0)/tr.length),
+    n: tr.length,
+  };
+}
+
+// ── Face bounding box (face-api OR fallback heuristic) ───────────────────────
+async function detectFaceBox(canvas, ctx){
+  const W=canvas.width, H=canvas.height;
+  if(window.faceapi && window.__faceApiReady){
+    try{
+      const opts = new faceapi.TinyFaceDetectorOptions({inputSize:416, scoreThreshold:0.4});
+      const det = await faceapi.detectSingleFace(canvas, opts);
+      if(det && det.box){
+        const b=det.box;
+        return {x:Math.round(b.x), y:Math.round(b.y), w:Math.round(b.width), h:Math.round(b.height)};
+      }
+    }catch(e){ /* fall through */ }
+  }
+  // Skin-density grid fallback
+  const cols=3, rows=4;
+  const cw=Math.floor(W/cols), ch=Math.floor(H/rows);
+  let bestScore=0, bestR=0, bestC=1;
+  for(let row=0; row<rows; row++){
+    for(let col=0; col<cols; col++){
+      const d=ctx.getImageData(col*cw, row*ch, cw, ch).data;
+      let cnt=0;
+      for(let i=0; i<d.length; i+=4) if(isSkin(d[i],d[i+1],d[i+2])) cnt++;
+      const ratio = cnt/(d.length/4);
+      if(ratio>bestScore){ bestScore=ratio; bestR=row; bestC=col; }
+    }
+  }
+  if(bestScore<0.22) return null;
+  const cx=(bestC+0.5)*cw, cy=(bestR+0.5)*ch;
+  const fw=Math.min(W*0.56, Math.max(W*0.30, cw*2.0));
+  const fh=Math.min(H*0.70, Math.max(H*0.42, ch*2.5));
+  return {
+    x: Math.round(Math.max(0, cx-fw/2)),
+    y: Math.round(Math.max(0, cy-fh/2)),
+    w: Math.round(Math.min(W, fw)),
+    h: Math.round(Math.min(H, fh)),
+  };
+}
+
+// ── Multi-zone sampling ──────────────────────────────────────────────────────
+function sampleFaceZones(data, imgW, imgH, faceBox){
+  const {x,y,w,h} = faceBox;
+  const zones = [
+    {n:'forehead',   cx:0.50, cy:0.18, rw:0.38, rh:0.18, wt:0.20},
+    {n:'leftCheek',  cx:0.24, cy:0.52, rw:0.28, rh:0.22, wt:0.30},
+    {n:'rightCheek', cx:0.76, cy:0.52, rw:0.28, rh:0.22, wt:0.30},
+    {n:'chin',       cx:0.50, cy:0.83, rw:0.28, rh:0.13, wt:0.20},
+  ];
+  return zones.map(z=>{
+    const zx=Math.max(0, Math.round(x + w*z.cx - w*z.rw/2));
+    const zy=Math.max(0, Math.round(y + h*z.cy - h*z.rh/2));
+    const zw=Math.min(imgW-zx, Math.round(w*z.rw));
+    const zh=Math.min(imgH-zy, Math.round(h*z.rh));
+    if(zw<4 || zh<4) return {result:null, weight:z.wt, name:z.n};
+    let pixels=sampleRect(data, imgW, zx, zy, zw, zh);
+    pixels=correctExposure(pixels);
+    return {result: processPixels(pixels, 20), weight: z.wt, name: z.n};
+  });
+}
+
+// ── Frame capture ────────────────────────────────────────────────────────────
+// Accepts either a HTMLVideoElement or a HTMLCanvasElement (pre-captured frame).
+// For video sources we flip horizontally (the video is mirror-previewed).
+// For canvas sources we assume the caller already baked in the correct
+// orientation.
+async function captureFrame(source){
+  if(!source) return null;
+  const isCanvas = source instanceof HTMLCanvasElement || source.tagName === 'CANVAS';
+  const W = source.videoWidth || source.width || 0;
+  const H = source.videoHeight || source.height || 0;
+  if(!W || !H) return null;
+  const canvas=document.createElement('canvas');
+  canvas.width=W; canvas.height=H;
+  const ctx=canvas.getContext('2d', {willReadFrequently:true});
+  if(isCanvas){
+    ctx.drawImage(source, 0, 0);
+  } else {
+    ctx.translate(W, 0); ctx.scale(-1, 1);
+    ctx.drawImage(source, 0, 0);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+  }
+  const data=ctx.getImageData(0, 0, W, H).data;
+  const faceBox=await detectFaceBox(canvas, ctx);
+  if(!faceBox) return {faceFound:false, zones:[], canvas};
+  return {
+    faceFound:true,
+    zones: sampleFaceZones(data, W, H, faceBox),
+    canvas,
+    faceBox,
+  };
+}
+
+// ── Merge + match ────────────────────────────────────────────────────────────
+function mergeCaptures(captures){
+  const zoneW = {forehead:0.20, leftCheek:0.30, rightCheek:0.30, chin:0.20};
+  let totalW=0, rA=0, gA=0, bA=0;
+  captures.forEach(cap=>{
+    if(!cap || !cap.faceFound) return;
+    cap.zones.forEach(z=>{
+      if(!z.result) return;
+      const c = z.result.n * (zoneW[z.name] || z.weight);
+      rA+=z.result.r*c; gA+=z.result.g*c; bA+=z.result.b*c;
+      totalW+=c;
+    });
+  });
+  if(totalW<1) return null;
+  return {r:Math.round(rA/totalW), g:Math.round(gA/totalW), b:Math.round(bA/totalW)};
+}
+
+function findBestTone(rgb){
+  const tones = window.LUMA_TONES;
+  const lab = rgbToLab(rgb.r, rgb.g, rgb.b);
+  const ita = Math.atan2(lab.L-50, lab.b)*(180/Math.PI);
+  const group = ita>28 ? 'light' : ita>-10 ? 'medium' : 'deep';
+  let best=tones[group][0], bestDE=Infinity;
+  const searchIn = [group];
+  // expand to neighbours if initial match is weak
+  Object.keys(tones).forEach(k=>{
+    if(!searchIn.includes(k)) searchIn.push(k);
+  });
+  searchIn.forEach(g=>{
+    tones[g].forEach(tone=>{
+      const tr=parseInt(tone.color.slice(1,3), 16);
+      const tg=parseInt(tone.color.slice(3,5), 16);
+      const tb=parseInt(tone.color.slice(5,7), 16);
+      const de=deltaE(lab, rgbToLab(tr,tg,tb));
+      if(de<bestDE){ bestDE=de; best=tone; }
+    });
+  });
+  const confidence = Math.max(0, Math.min(100, Math.round(100 - bestDE*2.2)));
+  return {tone:best, ita, confidence, deltaE:bestDE};
+}
+
+// ── Skin type from zone luminance ────────────────────────────────────────────
+function classifySkinType(captures){
+  const acc = {forehead:[], leftCheek:[], rightCheek:[], chin:[]};
+  captures.forEach(cap=>{
+    if(!cap || !cap.faceFound) return;
+    cap.zones.forEach(z=>{
+      if(!z.result) return;
+      const lum=0.299*z.result.r + 0.587*z.result.g + 0.114*z.result.b;
+      if(acc[z.name]) acc[z.name].push(lum);
+    });
+  });
+  const mean = arr=>arr.length?arr.reduce((a,b)=>a+b,0)/arr.length:null;
+  const fh=mean(acc.forehead), lc=mean(acc.leftCheek),
+        rc=mean(acc.rightCheek), ch=mean(acc.chin);
+  if(fh==null||lc==null||rc==null||ch==null) return {type:'Normal', sub:'Balanced'};
+  const tZone=(fh+ch)/2, uZone=(lc+rc)/2;
+  const diff=tZone-uZone;
+  const overall=(fh+lc+rc+ch)/4;
+  const variance=Math.sqrt([fh,lc,rc,ch].reduce((s,v)=>s+(v-overall)**2, 0)/4);
+  if(diff>12 && variance>10) return {type:'Oily',        sub:'Shine in T-zone'};
+  if(diff>7  && variance>5)  return {type:'Combination', sub:'Slight T-zone'};
+  if(variance<4 && overall<145) return {type:'Dry',      sub:'Matte uniform finish'};
+  return {type:'Normal', sub:'Balanced sebum'};
+}
+
+// ── Face shape from 68 landmarks ─────────────────────────────────────────────
+function classifyFaceShape(landmarks){
+  if(!landmarks) return null;
+  const pts = landmarks.positions || landmarks;
+  const d = (a,b)=>Math.hypot(a.x-b.x, a.y-b.y);
+  const chin=pts[8], jawL=pts[0], jawR=pts[16];
+  const jawLowL=pts[4], jawLowR=pts[12];
+  const browOutL=pts[17], browOutR=pts[26];
+  const browInL=pts[21], browInR=pts[22];
+  const foreheadW=d(browOutL, browOutR);
+  const cheekW=d(jawL, jawR);
+  const jawW=d(jawLowL, jawLowR);
+  const browMid={x:(browInL.x+browInR.x)/2, y:(browInL.y+browInR.y)/2};
+  const faceH=d(browMid, chin)*1.20;
+  const whr=cheekW/faceH, jcr=jawW/cheekW, fjr=foreheadW/jawW, fcr=foreheadW/cheekW;
+  const chinW=d(pts[7], pts[9]);
+  const chinPointy=chinW/jawW;
+  if(whr>0.88 && jcr>0.92) return {shape:'Square', sub:'Strong jaw'};
+  if(whr>0.92 && jcr>0.80 && chinPointy>0.30) return {shape:'Round', sub:'Soft curves'};
+  if(fjr>1.10 && jcr<0.85) return {shape:'Heart', sub:'Wider forehead'};
+  if(fcr<0.88 && jcr<0.88) return {shape:'Diamond', sub:'Cheekbones widest'};
+  if(whr<0.75) return {shape:'Oblong', sub:'Longer than wide'};
+  return {shape:'Oval', sub:'Balanced proportions'};
+}
+
+// ── face-api.js loader ───────────────────────────────────────────────────────
+const FACEAPI_LIB = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.14/dist/face-api.js';
+const FACEAPI_MODELS = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.14/model/';
+window.__faceApiReady = false;
+let __faceApiPromise = null;
+function loadScriptOnce(src){
+  return new Promise((resolve, reject)=>{
+    const s=document.createElement('script');
+    s.src=src; s.async=true;
+    s.onload=resolve; s.onerror=()=>reject(new Error('failed to load '+src));
+    document.head.appendChild(s);
+  });
+}
+async function ensureFaceApi(){
+  if(window.__faceApiReady) return true;
+  if(__faceApiPromise) return __faceApiPromise;
+  __faceApiPromise = (async()=>{
+    try{
+      if(!window.faceapi) await loadScriptOnce(FACEAPI_LIB);
+      await Promise.all([
+        faceapi.nets.tinyFaceDetector.loadFromUri(FACEAPI_MODELS),
+        faceapi.nets.faceLandmark68Net.loadFromUri(FACEAPI_MODELS),
+        faceapi.nets.faceExpressionNet.loadFromUri(FACEAPI_MODELS),
+        faceapi.nets.ageGenderNet.loadFromUri(FACEAPI_MODELS),
+      ]);
+      window.__faceApiReady = true;
+      return true;
+    }catch(e){
+      console.warn('[luma] face-api load failed:', e);
+      return false;
+    }
+  })();
+  return __faceApiPromise;
+}
+async function analyzeFaceWithApi(input){
+  if(!window.__faceApiReady || !window.faceapi || !input) return null;
+  // Try a few detector profiles — start strict, then loosen — so a slight
+  // head tilt or softer-lit frame still lands a valid detection.
+  const profiles = [
+    {inputSize:416, scoreThreshold:0.5},
+    {inputSize:512, scoreThreshold:0.3},
+    {inputSize:640, scoreThreshold:0.2},
+  ];
+  for(const p of profiles){
+    try{
+      const opts = new faceapi.TinyFaceDetectorOptions(p);
+      const det = await faceapi.detectSingleFace(input, opts)
+        .withFaceLandmarks().withFaceExpressions().withAgeAndGender();
+      if(det){
+        const shape = classifyFaceShape(det.landmarks);
+        const exprEntries = Object.entries(det.expressions||{}).sort((a,b)=>b[1]-a[1]);
+        const topExpr = exprEntries[0] ? exprEntries[0][0] : 'neutral';
+        return {
+          ...(shape||{}),
+          age: Math.round(det.age),
+          gender: det.gender,
+          expression: topExpr,
+        };
+      }
+    }catch(e){ /* try next profile */ }
+  }
+  return null;
+}
+
+// ── MediaPipe Face Landmarker (478-landmark, blendshapes, pose matrix) ──────
+// Loaded lazily via dynamic ESM import so the rest of the app stays on the
+// classic script pipeline. All inference happens locally (WASM + GPU delegate).
+const MP_VISION_ESM = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/vision_bundle.mjs';
+const MP_WASM_BASE  = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/wasm';
+const MP_MODEL_URL  = 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task';
+let __mpFaceLandmarker = null;
+let __mpFaceLandmarkerPromise = null;
+async function ensureFaceLandmarker(){
+  if (__mpFaceLandmarker) return __mpFaceLandmarker;
+  if (__mpFaceLandmarkerPromise) return __mpFaceLandmarkerPromise;
+  __mpFaceLandmarkerPromise = (async () => {
+    const vision = await import(/* @vite-ignore */ MP_VISION_ESM);
+    const { FilesetResolver, FaceLandmarker } = vision;
+    const resolver = await FilesetResolver.forVisionTasks(MP_WASM_BASE);
+    let landmarker;
+    try {
+      landmarker = await FaceLandmarker.createFromOptions(resolver, {
+        baseOptions: { modelAssetPath: MP_MODEL_URL, delegate: 'GPU' },
+        outputFaceBlendshapes: true,
+        outputFacialTransformationMatrixes: true,
+        runningMode: 'VIDEO',
+        numFaces: 1,
+      });
+    } catch (e) {
+      // GPU delegate can fail on some devices; retry on CPU so we still work.
+      console.warn('[luma] MediaPipe GPU delegate failed, falling back to CPU:', e);
+      landmarker = await FaceLandmarker.createFromOptions(resolver, {
+        baseOptions: { modelAssetPath: MP_MODEL_URL, delegate: 'CPU' },
+        outputFaceBlendshapes: true,
+        outputFacialTransformationMatrixes: true,
+        runningMode: 'VIDEO',
+        numFaces: 1,
+      });
+    }
+    __mpFaceLandmarker = landmarker;
+    return landmarker;
+  })();
+  return __mpFaceLandmarkerPromise;
+}
+
+// Expose on window for ScanModal to reuse
+window.__luma = {
+  captureFrame, mergeCaptures, findBestTone, itaLabel,
+  classifySkinType, classifyFaceShape, analyzeFaceWithApi, ensureFaceApi,
+  ensureFaceLandmarker,
+};
+
+// Kick off preload
+ensureFaceApi();
+// Preload MediaPipe too (models cache in browser so subsequent scans start instantly)
+ensureFaceLandmarker().catch(e => console.warn('[luma] FaceLandmarker preload failed:', e));
+
+// ────────────────────────────────────────────────────────────────────────────
+// Biometric Scanner COMPONENT — MediaPipe Face Landmarker (478 landmarks)
+//   • Active liveness challenge (direction-agnostic head yaw + blink)
+//   • Dynamic SVG safety-zone (70% coverage + centered gate)
+//   • Auto-capture on quality (yaw~0 + brightness + Laplacian variance)
+//   • 100% local processing — no pixels leave the device until capture passes
+// ────────────────────────────────────────────────────────────────────────────
+
+// Convert MediaPipe 4x4 facial transformation matrix (column-major) to
+// Tait-Bryan Euler angles (yaw around Y, pitch around X, roll around Z).
+function matrixToEuler(m) {
+  if (!m || m.length < 16) return { yaw: 0, pitch: 0, roll: 0 };
+  // Column-major indices for the top-left 3x3 rotation submatrix.
+  const m00 = m[0],  m10 = m[1],  m20 = m[2];
+  const m01 = m[4],  m11 = m[5],  m21 = m[6];
+  const m02 = m[8],  m12 = m[9],  m22 = m[10];
+  // Tait-Bryan YXZ order — robust for near-frontal faces.
+  const pitch = Math.asin(Math.max(-1, Math.min(1, -m12)));
+  const yaw   = Math.atan2(m02, m22);
+  const roll  = Math.atan2(m10, m11);
+  return { yaw, pitch, roll };
+}
+
+// Per-frame brightness + Laplacian-variance sharpness over a face ROI.
+function measureFrameQuality(video, minX, minY, maxX, maxY) {
+  const vw = video.videoWidth || 0, vh = video.videoHeight || 0;
+  if (!vw || !vh) return { brightness: 0, sharpness: 0 };
+  const x = Math.max(0, Math.floor(minX * vw));
+  const y = Math.max(0, Math.floor(minY * vh));
+  const w = Math.min(vw - x, Math.max(1, Math.floor((maxX - minX) * vw)));
+  const h = Math.min(vh - y, Math.max(1, Math.floor((maxY - minY) * vh)));
+  if (w < 20 || h < 20) return { brightness: 0, sharpness: 0 };
+
+  const TW = 64, TH = 64;
+  const c = document.createElement('canvas');
+  c.width = TW; c.height = TH;
+  const ctx = c.getContext('2d', { willReadFrequently: true });
+  try { ctx.drawImage(video, x, y, w, h, 0, 0, TW, TH); }
+  catch (_) { return { brightness: 0, sharpness: 0 }; }
+  const data = ctx.getImageData(0, 0, TW, TH).data;
+
+  // Luma + running sum for brightness.
+  const luma = new Float32Array(TW * TH);
+  let lumaSum = 0;
+  for (let i = 0, j = 0; i < data.length; i += 4, j++) {
+    const L = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+    luma[j] = L;
+    lumaSum += L;
+  }
+  const brightness = lumaSum / (TW * TH);
+
+  // Laplacian 3x3 kernel → variance of response.
+  let lSum = 0, lCount = 0;
+  const lap = new Float32Array(TW * TH);
+  for (let yy = 1; yy < TH - 1; yy++) {
+    for (let xx = 1; xx < TW - 1; xx++) {
+      const i = yy * TW + xx;
+      const v = -4 * luma[i] + luma[i - 1] + luma[i + 1] + luma[i - TW] + luma[i + TW];
+      lap[i] = v; lSum += v; lCount++;
+    }
+  }
+  const mean = lSum / lCount;
+  let variance = 0;
+  for (let yy = 1; yy < TH - 1; yy++) {
+    for (let xx = 1; xx < TW - 1; xx++) {
+      const i = yy * TW + xx;
+      const d = lap[i] - mean;
+      variance += d * d;
+    }
+  }
+  variance /= lCount;
+  return {
+    brightness: Math.round(brightness),
+    sharpness: Math.round(Math.sqrt(variance) * 10) / 10,
+  };
+}
+
+// Small tesselation-ish adjacency used to render the mesh without drawing all
+// 10k+ edges. We draw every landmark as a dot and connect nearest neighbors
+// along a few hand-picked contour polylines (silhouette, eyes, lips, brows).
+const MESH_RINGS = [
+  // Face silhouette (subset of FaceMesh FACE_OVAL)
+  [10,338,297,332,284,251,389,356,454,323,361,288,397,365,379,378,400,377,152,148,176,149,150,136,172,58,132,93,234,127,162,21,54,103,67,109,10],
+  // Right eye
+  [33,7,163,144,145,153,154,155,133,173,157,158,159,160,161,246,33],
+  // Left eye
+  [263,249,390,373,374,380,381,382,362,398,384,385,386,387,388,466,263],
+  // Right brow
+  [70,63,105,66,107],
+  // Left brow
+  [336,296,334,293,300],
+  // Outer lips
+  [61,146,91,181,84,17,314,405,321,375,291,409,270,269,267,0,37,39,40,185,61],
+];
+
+function Scanner({ scanState, onScan, tone, results }) {
+  const scanned = scanState === 'done' && results;
+  const videoRef = useRef(null);
+  const overlayRef = useRef(null);
+  const streamRef = useRef(null);
+  const rafRef = useRef(0);
+  const landmarkerRef = useRef(null);
+  const lastDetectTsRef = useRef(-1);
+  const stateRef = useRef(null);
+
+  // UI state
+  const [phase, setPhase] = useState('idle');
+  // 'idle' | 'loading' | 'positioning' | 'challenge-1' | 'challenge-2' | 'blink' | 'locking' | 'captured'
+  const [challenges, setChallenges] = useState({ first: false, second: false, blink: false });
+  const [hud, setHud] = useState({
+    centered: false, coverage: 0, yawDeg: 0, pitchDeg: 0,
+    brightness: 0, sharpness: 0, blinkL: 0, blinkR: 0, faceSeen: false,
+  });
+  const [errMsg, setErrMsg] = useState(null);
+
+  const YAW_LIVENESS = 0.32;   // ~18° — liveness challenge threshold
+  const YAW_LOCK_DEG = 6;       // face-forward gate (degrees)
+  const PITCH_LOCK_DEG = 10;    // head-level gate (degrees)
+  const MIN_BRIGHTNESS = 90;    // avg luma floor (0..255)
+  const MAX_BRIGHTNESS = 225;   // avoid blown highlights
+  const MIN_SHARPNESS = 6;      // Laplacian std-dev floor
+  const COVERAGE_GATE = 0.70;   // "70% of the oval"
+
+  // ── cleanup ────────────────────────────────────────────────────────────────
+  const stopAll = useCallback(() => {
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    rafRef.current = 0;
+    if (streamRef.current) {
+      try { streamRef.current.getTracks().forEach(t => t.stop()); } catch (_) {}
+      streamRef.current = null;
+    }
+    if (videoRef.current) {
+      try { videoRef.current.srcObject = null; } catch (_) {}
+    }
+    // We don't close the landmarker — it's a singleton reused across scans.
+    landmarkerRef.current = null;
+  }, []);
+
+  useEffect(() => () => stopAll(), [stopAll]);
+
+  // Reset on external finish
+  useEffect(() => {
+    if (scanState === 'done') {
+      stopAll();
+      setPhase('idle');
+      setChallenges({ first: false, second: false, blink: false });
+      // Release pre-captured frames so the next scan doesn't reuse stale data.
+      const L = window.__luma;
+      if (L) {
+        L.preCapturedCanvases = null;
+        L.preCapturedCanvas = null;
+        L.preCapturedFaceBox = null;
+      }
+    }
+  }, [scanState, stopAll]);
+
+  // ── draw overlay ───────────────────────────────────────────────────────────
+  const drawOverlay = (landmarks) => {
+    const canvas = overlayRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const cssW = Math.max(1, Math.floor(rect.width));
+    const cssH = Math.max(1, Math.floor(rect.height));
+    const dpr = window.devicePixelRatio || 1;
+    if (canvas.width !== cssW * dpr || canvas.height !== cssH * dpr) {
+      canvas.width = cssW * dpr;
+      canvas.height = cssH * dpr;
+    }
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (!landmarks) return;
+    ctx.scale(dpr, dpr);
+    const W = cssW, H = cssH;
+
+    // Dots — render every landmark (subsample every 2nd for perf).
+    ctx.fillStyle = 'rgba(255, 201, 168, 0.55)';
+    for (let i = 0; i < landmarks.length; i += 1) {
+      const p = landmarks[i];
+      ctx.fillRect(p.x * W - 0.5, p.y * H - 0.5, 1, 1);
+    }
+    // Contour polylines
+    ctx.strokeStyle = 'rgba(255, 201, 168, 0.65)';
+    ctx.lineWidth = 0.8;
+    for (const ring of MESH_RINGS) {
+      ctx.beginPath();
+      for (let i = 0; i < ring.length; i++) {
+        const p = landmarks[ring[i]];
+        if (!p) continue;
+        const x = p.x * W, y = p.y * H;
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    }
+  };
+
+  // ── per-frame loop ─────────────────────────────────────────────────────────
+  const loop = useCallback(() => {
+    const v = videoRef.current;
+    const landmarker = landmarkerRef.current;
+    const s = stateRef.current;
+    if (!v || !landmarker || !s) return;
+    if (!v.videoWidth) { rafRef.current = requestAnimationFrame(loop); return; }
+
+    let result = null;
+    try {
+      const ts = performance.now();
+      // MediaPipe requires monotonically increasing timestamps in VIDEO mode.
+      if (ts <= lastDetectTsRef.current) { rafRef.current = requestAnimationFrame(loop); return; }
+      lastDetectTsRef.current = ts;
+      result = landmarker.detectForVideo(v, ts);
+    } catch (e) { /* occasional frame errors — just skip */ }
+
+    const landmarks = result && result.faceLandmarks && result.faceLandmarks[0];
+    drawOverlay(landmarks);
+
+    if (!landmarks) {
+      setHud(h => ({ ...h, faceSeen: false }));
+      rafRef.current = requestAnimationFrame(loop);
+      return;
+    }
+
+    // Face bbox in normalized coords.
+    let minX = 1, minY = 1, maxX = 0, maxY = 0;
+    for (let i = 0; i < landmarks.length; i++) {
+      const p = landmarks[i];
+      if (p.x < minX) minX = p.x;
+      if (p.x > maxX) maxX = p.x;
+      if (p.y < minY) minY = p.y;
+      if (p.y > maxY) maxY = p.y;
+    }
+    const faceCx = (minX + maxX) / 2;
+    const faceCy = (minY + maxY) / 2;
+    const faceW = maxX - minX;
+    const faceH = maxY - minY;
+
+    // Safety zone: centered ellipse rx=0.28, ry=0.36 in viewport-normalized coords
+    const OVAL_RX = 0.28, OVAL_RY = 0.36;
+    const dx = (faceCx - 0.5) / OVAL_RX;
+    const dy = (faceCy - 0.5) / OVAL_RY;
+    const insideOval = (dx * dx + dy * dy) < 1.0;
+    const centered = insideOval
+      && Math.abs(faceCx - 0.5) < 0.09
+      && Math.abs(faceCy - 0.5) < 0.09;
+    // "70% of the oval" = face bounding box ~70% of the oval's bounding box
+    const coverage = Math.min(1,
+      Math.max(faceW / (2 * OVAL_RX), faceH / (2 * OVAL_RY)));
+
+    // Euler angles
+    const mxEntry = result.facialTransformationMatrixes && result.facialTransformationMatrixes[0];
+    const mx = mxEntry ? mxEntry.data : null;
+    const { yaw, pitch, roll } = matrixToEuler(mx);
+    const yawDeg = yaw * 180 / Math.PI;
+    const pitchDeg = pitch * 180 / Math.PI;
+
+    // Blendshapes (blink)
+    const bs = (result.faceBlendshapes && result.faceBlendshapes[0] && result.faceBlendshapes[0].categories) || [];
+    let blinkL = 0, blinkR = 0;
+    for (let i = 0; i < bs.length; i++) {
+      const c = bs[i];
+      if (c.categoryName === 'eyeBlinkLeft') blinkL = c.score;
+      else if (c.categoryName === 'eyeBlinkRight') blinkR = c.score;
+    }
+    const eyesClosed = blinkL > 0.55 && blinkR > 0.55;
+    const eyesOpen   = blinkL < 0.20 && blinkR < 0.20;
+
+    // Quality from ROI
+    const q = measureFrameQuality(v, minX, minY, maxX, maxY);
+
+    const now = performance.now();
+    // Throttle HUD updates to ~10Hz — state machine still runs at full rate
+    // via stateRef, keeping the feel responsive without React churn.
+    if (!s.lastHudAt || now - s.lastHudAt > 90) {
+      s.lastHudAt = now;
+      setHud({
+        centered, coverage: Math.round(coverage * 100),
+        yawDeg, pitchDeg,
+        brightness: q.brightness, sharpness: q.sharpness,
+        blinkL, blinkR, faceSeen: true,
+      });
+    }
+
+    // ── state machine ────────────────────────────────────────────────────────
+    if (s.phase === 'positioning') {
+      if (centered && coverage >= COVERAGE_GATE) {
+        s.holdStart = s.holdStart || now;
+        if (now - s.holdStart > 600) {
+          s.phase = 'challenge-1';
+          s.challengeStart = now;
+          s.firstYawSign = 0;
+          setPhase('challenge-1');
+        }
+      } else {
+        s.holdStart = 0;
+      }
+    } else if (s.phase === 'challenge-1') {
+      // Direction-agnostic: accept the first significant turn, remember its sign
+      if (Math.abs(yaw) > YAW_LIVENESS) {
+        s.firstYawSign = Math.sign(yaw);
+        s.challenges.first = true;
+        s.phase = 'challenge-2';
+        s.challengeStart = now;
+        setChallenges({ ...s.challenges });
+        setPhase('challenge-2');
+      } else if (now - s.challengeStart > 12000) {
+        return bail('Turn-head challenge timed out — try again.');
+      }
+    } else if (s.phase === 'challenge-2') {
+      // Must be opposite sign from first
+      const needSign = -s.firstYawSign;
+      if (Math.sign(yaw) === needSign && Math.abs(yaw) > YAW_LIVENESS) {
+        s.challenges.second = true;
+        s.phase = 'blink';
+        s.challengeStart = now;
+        s.blinkStage = 'open';
+        setChallenges({ ...s.challenges });
+        setPhase('blink');
+      } else if (now - s.challengeStart > 12000) {
+        return bail('Second head-turn timed out — try again.');
+      }
+    } else if (s.phase === 'blink') {
+      // Require an open → closed → open transition
+      if (s.blinkStage === 'open' && eyesClosed) s.blinkStage = 'closed';
+      else if (s.blinkStage === 'closed' && eyesOpen) {
+        s.challenges.blink = true;
+        s.phase = 'locking';
+        s.lockStart = now;
+        setChallenges({ ...s.challenges });
+        setPhase('locking');
+      } else if (now - s.challengeStart > 10000) {
+        return bail('Blink not detected — try again.');
+      }
+    } else if (s.phase === 'locking') {
+      const yawOK  = Math.abs(yawDeg)  < YAW_LOCK_DEG;
+      const pitchOK = Math.abs(pitchDeg) < PITCH_LOCK_DEG;
+      const brightOK = q.brightness >= MIN_BRIGHTNESS && q.brightness <= MAX_BRIGHTNESS;
+      const sharpOK  = q.sharpness  >= MIN_SHARPNESS;
+      const poseOK = yawOK && pitchOK && centered && coverage >= 0.62;
+      const qualityOK = poseOK && brightOK && sharpOK;
+
+      if (qualityOK) {
+        // Snapshot current frame, score it, remember top-3
+        const c = document.createElement('canvas');
+        c.width = v.videoWidth; c.height = v.videoHeight;
+        const ctx = c.getContext('2d', { willReadFrequently: true });
+        try { ctx.drawImage(v, 0, 0); } catch (_) {}
+        const score =
+          q.sharpness * 10
+          + (1 - Math.abs(yawDeg) / YAW_LOCK_DEG) * 40
+          + (1 - Math.min(1, Math.abs(q.brightness - 160) / 80)) * 30
+          + coverage * 20;
+        s.best.push({
+          canvas: c, score, brightness: q.brightness, sharpness: q.sharpness,
+          yawDeg, pitchDeg, coverage, faceBox: { minX, minY, maxX, maxY },
+        });
+        s.best.sort((a, b) => b.score - a.score);
+        if (s.best.length > 4) s.best.length = 4;
+      }
+
+      if (now - s.lockStart > 1400 && s.best.length > 0) {
+        s.phase = 'captured';
+        setPhase('captured');
+        finalize(s.best);
+        return;
+      }
+      if (now - s.lockStart > 10000) {
+        return bail('Could not get a clear frame — improve lighting / hold still.');
+      }
+    }
+
+    rafRef.current = requestAnimationFrame(loop);
+
+    function bail(msg) {
+      console.warn('[luma-bio]', msg);
+      setErrMsg(msg);
+      stopAll();
+      setPhase('idle');
+    }
+  }, [stopAll]);
+
+  // ── finalize → hand off to analysis modal ──────────────────────────────────
+  const finalize = (bestFrames) => {
+    const top = bestFrames[0];
+    const L = window.__luma;
+    L.preCapturedCanvases = bestFrames.map(f => f.canvas);
+    L.preCapturedCanvas = top.canvas;
+    L.preCapturedFaceBox = top.faceBox;
+    L.liveness = {
+      challenges: { ...stateRef.current.challenges },
+      yawDeg: top.yawDeg,
+      pitchDeg: top.pitchDeg,
+      brightness: top.brightness,
+      sharpness: top.sharpness,
+      coverage: top.coverage,
+    };
+    // Tear down the camera immediately — we have what we need.
+    stopAll();
+    // Kick analysis (uses existing pipeline via ScanModal)
+    setTimeout(() => { onScan && onScan(); }, 400);
+  };
+
+  // ── begin → request camera + model, then start loop ────────────────────────
+  const begin = async () => {
+    if (phase !== 'idle') return;
+    setErrMsg(null);
+    setPhase('loading');
+    setChallenges({ first: false, second: false, blink: false });
+
+    try {
+      const L = window.__luma;
+      const [stream, landmarker] = await Promise.all([
+        navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 960 }, frameRate: { ideal: 30 } },
+          audio: false,
+        }),
+        L.ensureFaceLandmarker(),
+      ]);
+      streamRef.current = stream;
+      landmarkerRef.current = landmarker;
+      window.__luma.videoStream = stream;
+
+      // Wait for <video> to mount
+      let tries = 0;
+      while (!videoRef.current && tries < 40) {
+        await new Promise(r => setTimeout(r, 50));
+        tries++;
+      }
+      if (!videoRef.current) throw new Error('Video element missing');
+      videoRef.current.srcObject = stream;
+      try { await videoRef.current.play(); } catch (_) {}
+      await new Promise(resolve => {
+        const v = videoRef.current;
+        if (!v || v.videoWidth > 0) return resolve();
+        const ok = () => { v.removeEventListener('loadedmetadata', ok); resolve(); };
+        v.addEventListener('loadedmetadata', ok, { once: true });
+        setTimeout(resolve, 2500);
+      });
+      window.__luma.videoEl = videoRef.current;
+
+      stateRef.current = {
+        phase: 'positioning',
+        challenges: { first: false, second: false, blink: false },
+        firstYawSign: 0,
+        challengeStart: 0,
+        lockStart: 0,
+        holdStart: 0,
+        blinkStage: 'open',
+        best: [],
+      };
+      setPhase('positioning');
+      lastDetectTsRef.current = -1;
+      rafRef.current = requestAnimationFrame(loop);
+    } catch (e) {
+      console.warn('[luma-bio] begin failed:', e);
+      stopAll();
+      setErrMsg(
+        e.name === 'NotAllowedError' ? 'Camera access denied — enable it in your browser.' :
+        e.name === 'NotFoundError'   ? 'No front-facing camera found on this device.' :
+        'Could not start scan: ' + (e.message || e.name || 'unknown error')
+      );
+      setPhase('idle');
+    }
+  };
+
+  // ── derived UI values ──────────────────────────────────────────────────────
+  const chipData = scanned ? {
+    faceShape: results.faceShape || 'Detected',
+    faceShapeSub: results.faceShapeSub || 'Landmarks detected',
+    tone: results.tone ? results.tone.name : tone.name,
+    toneSub: results.tone ? 'ITA° '+results.ita.toFixed(1)+' · '+itaLabel(results.ita) : tone.undertone,
+    undertone: (results.tone ? results.tone.undertone : tone.undertone).split(' · ')[0],
+    undertoneSub: results.tone ? results.tone.undertone : 'High confidence',
+    skinType: results.skinType || 'Normal',
+    skinTypeSub: (results.skinTypeSub || '') + ' · '+(results.confidence||0)+'%',
+  } : null;
+
+  // Safety-zone ring feedback + coverage progress
+  const showOverlay = phase !== 'idle' && phase !== 'captured';
+  const ringClass =
+    (phase === 'captured') ? 'ok' :
+    (phase === 'positioning' && hud.faceSeen && hud.centered && hud.coverage >= 70) ? 'ok' :
+    (phase === 'locking') ? 'ok' :
+    (phase === 'positioning' && !hud.faceSeen) ? 'warn' : '';
+  // Ring perimeter for the safety oval (rx=28, ry=36 in viewBox 100x100)
+  const OVAL_CIRC = 203; // Ramanujan approx 2π * sqrt((rx²+ry²)/2)
+  const coverageOffset = OVAL_CIRC * (1 - Math.min(1, hud.coverage / 100));
+
+  const posStatus =
+    !hud.faceSeen ? 'No face detected — centre yourself in the oval.' :
+    !hud.centered ? 'Move closer to the centre of the oval.' :
+    hud.coverage < 70 ? `Move closer — ${hud.coverage}% coverage (need 70%)` :
+    'Hold still…';
+
+  const promptTxt =
+    phase === 'loading'     ? 'Loading biometric models…' :
+    phase === 'positioning' ? posStatus :
+    phase === 'challenge-1' ? 'Slowly turn your head to one side' :
+    phase === 'challenge-2' ? 'Now turn to the other side' :
+    phase === 'blink'       ? 'Blink to confirm liveness' :
+    phase === 'locking'     ? 'Hold still — capturing best frame' :
+    phase === 'captured'    ? 'Biometric capture complete' :
+    '';
+
+  const promptArrow =
+    phase === 'challenge-2' && stateRef.current
+      ? (stateRef.current.firstYawSign > 0 ? '→' : '←')
+      : phase === 'challenge-1' ? '↔'
+      : phase === 'blink' ? '◉'
+      : null;
+
+  const metricOK = {
+    yaw:   Math.abs(hud.yawDeg) < YAW_LOCK_DEG,
+    bright: hud.brightness >= MIN_BRIGHTNESS && hud.brightness <= MAX_BRIGHTNESS,
+    sharp:  hud.sharpness  >= MIN_SHARPNESS,
+    cover:  hud.coverage   >= 70,
+  };
+
+  return (
+    <div className="scan-area">
+      <div className="section-eyebrow">
+        <span className="status-dot"/>
+        {phase === 'idle' ? 'Biometric Scanner' :
+         phase === 'captured' ? 'Capture Locked · Analysing' :
+         'Live Biometric Capture'}
+      </div>
+
+      <div className="scan-viewport">
+        <div className="scan-dots"/>
+        <video
+          ref={videoRef}
+          autoPlay playsInline muted
+          style={{
+            position:'absolute', inset:0, width:'100%', height:'100%',
+            objectFit:'cover', transform:'scaleX(-1)', borderRadius:'inherit',
+            display: (phase === 'idle' || phase === 'loading') ? 'none' : 'block',
+          }}/>
+
+        {/* Placeholder illustration only when idle */}
+        {phase === 'idle' && (
+          <svg className="face-svg" viewBox="0 0 200 280" fill="none">
+            <defs>
+              <radialGradient id="sg" cx="50%" cy="40%" r="60%">
+                <stop offset="0%" stopColor="#f0d5bc"/>
+                <stop offset="100%" stopColor="#d4a87a"/>
+              </radialGradient>
+            </defs>
+            <ellipse cx="100" cy="120" rx="72" ry="88" fill="url(#sg)"/>
+            <path d="M28 110 Q30 50 100 35 Q170 50 172 110 Q160 55 100 42 Q40 55 28 110Z" fill="#1a1010"/>
+            <ellipse cx="69" cy="106" rx="11" ry="7" fill="white"/>
+            <ellipse cx="69" cy="107" rx="5" ry="5" fill="#3a1e10"/>
+            <ellipse cx="131" cy="106" rx="11" ry="7" fill="white"/>
+            <ellipse cx="131" cy="107" rx="5" ry="5" fill="#3a1e10"/>
+            <path d="M55 92 Q72 85 84 88" stroke="#2a1810" strokeWidth="2.5" fill="none" strokeLinecap="round"/>
+            <path d="M116 88 Q128 85 145 92" stroke="#2a1810" strokeWidth="2.5" fill="none" strokeLinecap="round"/>
+            <path d="M82 170 Q100 164 118 170 Q110 178 100 180 Q90 178 82 170Z" fill="#c06a58"/>
+            <ellipse cx="55" cy="145" rx="16" ry="10" fill="#e09070" opacity="0.25"/>
+            <ellipse cx="145" cy="145" rx="16" ry="10" fill="#e09070" opacity="0.25"/>
+          </svg>
+        )}
+
+        {/* Live 478-point mesh overlay (mirrored) */}
+        {showOverlay && <canvas ref={overlayRef} className="bio-mesh"/>}
+
+        {/* SVG safety zone */}
+        {showOverlay && (
+          <svg className="bio-guide" viewBox="0 0 100 100" preserveAspectRatio="none">
+            <ellipse className="ring-bg" cx="50" cy="50" rx="28" ry="36"/>
+            <ellipse
+              className={`ring-fg ${ringClass}`}
+              cx="50" cy="50" rx="28" ry="36"
+              strokeDasharray={OVAL_CIRC}
+              strokeDashoffset={phase === 'positioning' ? coverageOffset : 0}
+              transform="rotate(-90 50 50)"
+            />
+            {/* corner ticks around the oval */}
+            {[0, 90, 180, 270].map((deg, i) => {
+              const rad = deg * Math.PI / 180;
+              const x1 = 50 + Math.cos(rad) * 28;
+              const y1 = 50 + Math.sin(rad) * 36;
+              const x2 = 50 + Math.cos(rad) * (28 + 3);
+              const y2 = 50 + Math.sin(rad) * (36 + 3);
+              const on = (i === 0 && challenges.first) ||
+                         (i === 1 && challenges.blink) ||
+                         (i === 2 && challenges.second) ||
+                         (phase === 'locking' || phase === 'captured');
+              return (
+                <line key={i} className={`guide-tick ${on ? 'on' : ''}`}
+                  x1={x1} y1={y1} x2={x2} y2={y2}/>
+              );
+            })}
+          </svg>
+        )}
+
+        {/* Prompt banner + liveness step pills */}
+        {(phase !== 'idle' && phase !== 'captured') && (
+          <>
+            <div className={`bio-prompt ${ringClass==='ok'?'ok':''}`}>
+              {promptArrow && <span className={`bio-arrow ${ringClass==='ok'?'ok':''}`}>{promptArrow}</span>}
+              <span>{promptTxt}</span>
+            </div>
+            <div className="bio-steps">
+              <span className={`bio-step-pill ${
+                phase === 'challenge-1' ? 'active' : challenges.first ? 'done' : ''}`}>Turn 1</span>
+              <span className={`bio-step-pill ${
+                phase === 'challenge-2' ? 'active' : challenges.second ? 'done' : ''}`}>Turn 2</span>
+              <span className={`bio-step-pill ${
+                phase === 'blink' ? 'active' : challenges.blink ? 'done' : ''}`}>Blink</span>
+              <span className={`bio-step-pill ${
+                phase === 'locking' ? 'active' : phase === 'captured' ? 'done' : ''}`}>Lock</span>
+            </div>
+          </>
+        )}
+
+        {/* Live quality HUD */}
+        {(phase !== 'idle' && phase !== 'loading' && phase !== 'captured') && (
+          <div className="bio-metrics">
+            <div className={`bio-metric ${metricOK.cover ? 'ok' : (hud.faceSeen ? 'bad' : '')}`}>
+              <div className="bio-metric-lbl">Coverage</div>
+              <div className="bio-metric-val">{hud.coverage}%</div>
+            </div>
+            <div className={`bio-metric ${metricOK.yaw ? 'ok' : 'bad'}`}>
+              <div className="bio-metric-lbl">Yaw</div>
+              <div className="bio-metric-val">{hud.yawDeg.toFixed(1)}°</div>
+            </div>
+            <div className={`bio-metric ${metricOK.bright ? 'ok' : 'bad'}`}>
+              <div className="bio-metric-lbl">Light</div>
+              <div className="bio-metric-val">{hud.brightness}</div>
+            </div>
+            <div className={`bio-metric ${metricOK.sharp ? 'ok' : 'bad'}`}>
+              <div className="bio-metric-lbl">Sharp</div>
+              <div className="bio-metric-val">{hud.sharpness.toFixed(1)}</div>
+            </div>
+          </div>
+        )}
+
+        {/* Capture success flash + stamp */}
+        {phase === 'captured' && <div className="bio-flash"/>}
+        {phase === 'captured' && (
+          <div className="bio-captured-stamp">
+            <strong>✓ Locked</strong>
+            Best frame captured
+          </div>
+        )}
+
+        <div className="scan-corner tl"/><div className="scan-corner tr"/>
+        <div className="scan-corner bl"/><div className="scan-corner br"/>
+
+        <div className="scan-status">
+          {errMsg
+            ? errMsg
+            : phase === 'idle'       ? (scanned ? '✓ Scan complete' : 'Ready · Biometric grade')
+            : phase === 'loading'    ? 'Initialising GPU inference…'
+            : phase === 'positioning'? 'Positioning'
+            : phase === 'challenge-1'? 'Liveness 1 / 3'
+            : phase === 'challenge-2'? 'Liveness 2 / 3'
+            : phase === 'blink'      ? 'Liveness 3 / 3'
+            : phase === 'locking'    ? 'Auto-capture'
+            : '✓ Locked'}
+        </div>
+      </div>
+
+      <div className="bio-privacy">100% local · GPU inference · no upload</div>
+
+      <div className="chips-grid">
+        <Chip label="Face Shape" value={chipData?chipData.faceShape:'—'}
+              sub={chipData?chipData.faceShapeSub:'Not yet detected'}/>
+        <Chip label="Skin Tone" value={chipData?chipData.tone:'—'}
+              sub={chipData?chipData.toneSub:'Not yet detected'}/>
+        <Chip label="Undertone" value={chipData?chipData.undertone:'—'}
+              sub={chipData?chipData.undertoneSub:'Not yet detected'}/>
+        <Chip label="Skin Type" value={chipData?chipData.skinType:'—'}
+              sub={chipData?chipData.skinTypeSub:'Not yet detected'}/>
+      </div>
+
+      <button
+        className={`scan-btn ${phase !== 'idle' && scanState !== 'done' ? 'active' : ''}`}
+        onClick={begin}
+        disabled={phase !== 'idle' || scanState === 'scanning'}
+      >
+        {phase === 'idle' && scanState !== 'done' && '✦ Begin biometric scan'}
+        {phase === 'idle' && scanState === 'done' && '✦ Scan again'}
+        {phase === 'loading' && 'Loading models…'}
+        {phase === 'positioning' && 'Position your face…'}
+        {(phase === 'challenge-1' || phase === 'challenge-2') && 'Liveness challenge…'}
+        {phase === 'blink' && 'Awaiting blink…'}
+        {phase === 'locking' && 'Auto-capturing…'}
+        {phase === 'captured' && 'Captured — analysing'}
+      </button>
+    </div>
+  );
+}
+
+function Chip({ label, value, sub }) {
+  return (
+    <div className="chip">
+      <div className="chip-lbl">{label}</div>
+      <div className="chip-val">{value}</div>
+      <div className="chip-sub">{sub}</div>
+    </div>
+  );
+}
+
+window.LumaScanner = Scanner;
+
+})();
+</script>
+<script type="text/babel" data-presets="react" data-label="TonePicker">
+(function(){
+/* global React */
+function TonePicker({ tone, onSelect }) {
+  const tones = window.LUMA_TONES;
+  const row = (key, label) => (
+    <React.Fragment key={key}>
+      <div className="tone-group-label">{label}</div>
+      <div className="tone-row">
+        {tones[key].map(t => (
+          <button key={t.id} className={`tone-sw ${tone.id===t.id?'active':''}`}
+            style={{background:t.color}} onClick={()=>onSelect(t)} title={t.name}/>
+        ))}
+      </div>
+    </React.Fragment>
+  );
+  return (
+    <div className="tone-wrap">
+      <div className="section-eyebrow">Skin Tone</div>
+      {row('light','Fair & Light')}
+      {row('medium','Medium & Olive')}
+      {row('deep','Deep & Rich')}
+      <div className="selected-tone">
+        <div className="selected-dot" style={{background:tone.color}}/>
+        <div>
+          <div className="selected-name">{tone.name}</div>
+          <div className="selected-sub">{tone.undertone}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+window.LumaTonePicker = TonePicker;
+
+})();
+</script>
+<script type="text/babel" data-presets="react" data-label="Filters">
+(function(){
+/* global React */
+const { useState } = React;
+
+function Filters({ budget, setBudget, prefs, setPrefs, concerns, setConcerns, coverage, setCoverage }) {
+  const togglePref = id => setPrefs(p => p.includes(id)?p.filter(x=>x!==id):[...p,id]);
+  const toggleConcern = c => setConcerns(p => p.includes(c)?p.filter(x=>x!==c):[...p,c]);
+  const pct = ((budget-5)/(300-5)*100).toFixed(0)+'%';
+  return (
+    <div className="filters-wrap">
+      <div className="section-eyebrow">Filters</div>
+
+      <div className="filter-group">
+        <div className="filter-title">Budget Range</div>
+        <div className="budget-labels"><span>Budget</span><span>Mid</span><span>Luxury</span></div>
+        <input type="range" min="5" max="300" value={budget}
+          onChange={e=>setBudget(+e.target.value)}
+          style={{'--val':pct}}/>
+        <div className="budget-val">Up to £{budget}</div>
+      </div>
+
+      <div className="filter-group">
+        <div className="filter-title">Preferences</div>
+        <div className="toggle-grid">
+          {window.LUMA_PREFS.map(p => (
+            <button key={p.id} className={`toggle ${prefs.includes(p.id)?'on':''}`} onClick={()=>togglePref(p.id)}>
+              <span className="toggle-dot"/>{p.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="filter-group">
+        <div className="filter-title">Skin Concerns</div>
+        <div className="tag-row">
+          {window.LUMA_CONCERNS.map(c => (
+            <button key={c} className={`tag ${concerns.includes(c)?'active':''}`} onClick={()=>toggleConcern(c)}>{c}</button>
+          ))}
+        </div>
+      </div>
+
+      <div className="filter-group">
+        <div className="filter-title">Foundation Coverage</div>
+        <div className="tag-row">
+          {['Light','Medium','Full','Buildable'].map(c => (
+            <button key={c} className={`tag ${coverage===c?'active':''}`} onClick={()=>setCoverage(coverage===c?'':c)}>{c}</button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+window.LumaFilters = Filters;
+
+})();
+</script>
+<script type="text/babel" data-presets="react" data-label="ProductCard">
+(function(){
+/* global React */
+function ProductCard({ p, saved, onSave }) {
+  return (
+    <article className="prod-card">
+      <span className="match-badge">{p.match}% match</span>
+      <div className="prod-img" style={{background:`linear-gradient(135deg, ${p.swatches[0]}, ${p.swatches[p.swatches.length-1]})`}}>
+        <div className="prod-img-bottle"/>
+      </div>
+      <div className="prod-brand">{p.brand}</div>
+      <span className="prod-cat">{p.cat}</span>
+      <h3 className="prod-name">{p.name}</h3>
+      <p className="prod-desc">{p.desc}</p>
+      <div className="prod-swatches">
+        {p.swatches.map((s,i)=><span key={i} className="prod-sw" style={{background:s}}/>)}
+        <span className="prod-more">+{Math.max(0, 14 - p.swatches.length)} more</span>
+      </div>
+      <div className="prod-tags">
+        {p.tags.map(t => <span key={t} className="prod-tag">{t}</span>)}
+      </div>
+      <div className="prod-foot">
+        <div className="prod-price">£{p.price}</div>
+        <div className="prod-actions">
+          <button className={`prod-save ${saved?'saved':''}`} onClick={onSave} aria-label="Save">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill={saved?'#ffc9a8':'none'} stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 21s-7-4.5-7-10a4 4 0 017-2.6A4 4 0 0119 11c0 5.5-7 10-7 10z"/></svg>
+          </button>
+          <a
+            className="prod-shop"
+            href={`https://www.google.com/search?tbm=shop&q=${encodeURIComponent(p.brand + ' ' + p.name)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e)=>e.stopPropagation()}>Shop</a>
+        </div>
+      </div>
+    </article>
+  );
+}
+window.LumaProductCard = ProductCard;
+
+})();
+</script>
+<script type="text/babel" data-presets="react" data-label="Marketplace">
+(function(){
+/* global React */
+const { useState } = React;
+
+function Marketplace({ saved, setSaved, budget, prefs, concerns, coverage }) {
+  const [cat, setCat] = useState('Foundation');
+  const [sort, setSort] = useState('match');
+  const cats = window.LUMA_CATEGORIES;
+
+  // --- Filter helpers ---------------------------------------------------
+  // Map preference ids -> tag predicates (tags are case-sensitive strings on each product)
+  const PREF_MATCH = {
+    vegan:     p => p.tags.includes('Vegan'),
+    cruelty:   p => p.tags.includes('Cruelty-free'),
+    silicone:  p => p.tags.includes('Silicone-free'),
+    paraben:   p => p.tags.includes('Paraben-free'),
+    fragrance: p => p.tags.includes('Fragrance-free'),
+    spf:       p => p.tags.some(t => /^SPF/i.test(t)),
+  };
+
+  // Map skin concerns -> keyword regex matched against name + desc + tags
+  const CONCERN_MATCH = {
+    'Acne':              /acne|blemish|salicylic|bha|pore|oily|oil-?free|matte|niacinamide|clear/i,
+    'Dryness':           /hydrat|moistur|dry|hyaluronic|dewy|glow|plump|ceramide|squalane|nourish/i,
+    'Oiliness':          /oily|oil-?free|matte|pore|shine|sebum|mattif|bha/i,
+    'Redness':           /redness|calm|soothe|fragrance-?free|sensitive|aloe|ceramide|gentle/i,
+    'Hyperpigmentation': /dark spot|even skin tone|brighten|niacinamide|vitamin c|ascorbic|tranexamic|arbutin|radian|discolor/i,
+    'Fine Lines':        /fine line|wrinkle|anti-?aging|anti-ageing|peptide|retinol|firm|plump|youth|age/i,
+    'Dark Circles':      /dark circle|under-?eye|brighten|caffeine|de-?puff|radian/i,
+    'Pores':             /pore|blur|smooth|mattif|minimiz|niacinamide/i,
+  };
+
+  function productText(p) {
+    return (p.name + ' ' + p.desc + ' ' + p.tags.join(' ')).toLowerCase();
+  }
+
+  // Coverage filter only meaningful on Foundation — score by keywords in name+desc
+  const COVERAGE_MATCH = {
+    'Light':     t => /(^|\W)(light|lightweight|weightless|tinted|sheer|skin-?like|luminous|natural|serum|super-?light|glow)(\W|$)/i.test(t),
+    'Medium':    t => /(^|\W)(medium|buildable|medium-?to-?full|natural finish|satin)(\W|$)/i.test(t),
+    'Full':      t => /(^|\W)(full|full-?coverage|long-?wear|longwear|24-?hour|16-?hour|camouflage)(\W|$)/i.test(t),
+    'Buildable': t => /(^|\W)buildable(\W|$)/i.test(t),
+  };
+
+  // --- Build filtered list ----------------------------------------------
+  let products = window.LUMA_PRODUCTS.filter(p => p.cat === cat);
+
+  // Budget cap (applies to every category)
+  products = products.filter(p => p.price <= budget);
+
+  // Preferences: product must satisfy EVERY selected preference
+  if (prefs && prefs.length) {
+    products = products.filter(p => prefs.every(id => (PREF_MATCH[id] ? PREF_MATCH[id](p) : true)));
+  }
+
+  // Skin concerns: product must address at least ONE selected concern
+  if (concerns && concerns.length) {
+    products = products.filter(p => {
+      const text = productText(p);
+      return concerns.some(c => (CONCERN_MATCH[c] ? CONCERN_MATCH[c].test(text) : false));
+    });
+  }
+
+  // Foundation coverage: only applied when viewing Foundation
+  if (cat === 'Foundation' && coverage && COVERAGE_MATCH[coverage]) {
+    products = products.filter(p => COVERAGE_MATCH[coverage](productText(p)));
+  }
+
+  if (sort==='price-asc') products = [...products].sort((a,b)=>a.price-b.price);
+  else if (sort==='price-desc') products = [...products].sort((a,b)=>b.price-a.price);
+  else if (sort==='match') products = [...products].sort((a,b)=>b.match-a.match);
+  else if (sort==='rating') products = [...products].sort((a,b)=>b.match-a.match);
+  const totalAll = window.LUMA_PRODUCTS.filter(p => p.cat === cat).length;
+
+  return (
+    <section className="marketplace">
+      <div className="mkt-header">
+        <div className="mkt-top">
+          <div>
+            <h2 className="mkt-title">Your <em>Matches</em></h2>
+            <div className="mkt-sub">Personalised to your skin tone &amp; preferences</div>
+          </div>
+          <div className="mkt-meta">
+            <div className="mkt-count">{products.length} products</div>
+            <div className="mkt-sub">Best match first</div>
+          </div>
+        </div>
+        <div className="cat-tabs">
+          {cats.map(c => (
+            <button key={c} className={`cat-tab ${cat===c?'active':''}`} onClick={()=>setCat(c)}>{c}</button>
+          ))}
+        </div>
+      </div>
+
+      <div className="sort-bar">
+        <div className="sort-left">
+          <span className="sort-label">Sort</span>
+          <button className={`sort-btn ${sort==='match'?'on':''}`} onClick={()=>setSort('match')}>Best Match</button>
+          <button className={`sort-btn ${sort==='price-asc'?'on':''}`} onClick={()=>setSort('price-asc')}>Price ↑</button>
+          <button className={`sort-btn ${sort==='price-desc'?'on':''}`} onClick={()=>setSort('price-desc')}>Price ↓</button>
+          <button className={`sort-btn ${sort==='rating'?'on':''}`} onClick={()=>setSort('rating')}>Top Rated</button>
+        </div>
+        <div className="sort-count">Showing <em>{products.length}</em> of {totalAll}</div>
+      </div>
+
+      {products.length === 0 ? (
+        <div className="prod-grid" style={{display:'block'}}>
+          <div style={{
+            padding:'48px 28px',textAlign:'center',
+            border:'1px dashed rgba(255,255,255,.14)',borderRadius:18,
+            background:'rgba(255,255,255,.02)',color:'rgba(255,255,255,.7)'}}>
+            <div style={{fontSize:15,letterSpacing:'.04em',marginBottom:6,color:'var(--peach)'}}>No matches in this view</div>
+            <div style={{fontSize:13,lineHeight:1.55,maxWidth:420,margin:'0 auto',opacity:.75}}>
+              Try raising the budget, clearing a skin concern, or switching foundation coverage — your current filter combo is too strict for this category.
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="prod-grid">
+          {products.map((p,i)=>{
+            const key = p.brand + '|' + p.name;
+            return (
+              <window.LumaProductCard key={key} p={p}
+                saved={saved.has(key)}
+                onSave={()=>{const n=new Set(saved); n.has(key)?n.delete(key):n.add(key); setSaved(n);}}/>
+            );
+          })}
+        </div>
+      )}
+    </section>
+  );
+}
+window.LumaMarketplace = Marketplace;
+
+})();
+</script>
+<script type="text/babel" data-presets="react" data-label="ScanModal+real-capture">
+(function(){
+/* global React */
+const { useState: useStateM, useEffect: useEffectM, useRef: useRefM } = React;
+
+function ScanModal({ open, onDone, onResults }) {
+  const [step, setStep] = useStateM(0);
+  const [err, setErr] = useStateM(null);
+  const cancelledRef = useRefM(false);
+
+  useEffectM(()=>{
+    if (!open) { setStep(0); setErr(null); cancelledRef.current=false; return; }
+    cancelledRef.current = false;
+    let aborted = false;
+
+    async function runScan(){
+      const L = window.__luma;
+
+      // Preferred path: Scanner already auto-captured biometric-grade frames.
+      // Fallback: we still have a live video element (legacy flow).
+      const preCanvases = Array.isArray(L.preCapturedCanvases) && L.preCapturedCanvases.length
+        ? L.preCapturedCanvases.slice(0, 3)
+        : null;
+
+      if (!preCanvases) {
+        // Wait for video to be ready (legacy live-analysis path)
+        let tries=0;
+        while((!L.videoEl || !L.videoEl.videoWidth) && tries<40 && !aborted){
+          await new Promise(r=>setTimeout(r, 100));
+          tries++;
+        }
+        if(aborted) return;
+        if(!L.videoEl || !L.videoEl.videoWidth){
+          setErr('Camera not ready — close and try again.');
+          return;
+        }
+        // Wait a bit for exposure/WB
+        await new Promise(r=>setTimeout(r, 800));
+        if(aborted) return;
+      }
+
+      // Kick off face-api load in parallel
+      const apiPromise = L.ensureFaceApi();
+
+      // 5 animated steps; capture 3 frames distributed across them
+      const captures = [];
+      const steps = [
+        { label:'Face & landmark detection',      capture: true,  delay: 500 },
+        { label:'Melanin & skin zone mapping',    capture: true,  delay: 600 },
+        { label:'Multi-frame tone sampling',      capture: true,  delay: 600 },
+        { label:'ITA phototype & undertone',      capture: false, delay: 600 },
+        { label:'Shade matching & recommendations', capture: false, delay: 600 },
+      ];
+      let capIdx = 0;
+      for(let i=0; i<steps.length; i++){
+        if(aborted) return;
+        setStep(i+1);
+        if(steps[i].capture){
+          // Use pre-captured biometric frames when available, else grab live.
+          const source = preCanvases
+            ? preCanvases[Math.min(capIdx, preCanvases.length - 1)]
+            : L.videoEl;
+          const frame = await L.captureFrame(source);
+          if(frame) captures.push(frame);
+          capIdx++;
+        }
+        await new Promise(r=>setTimeout(r, steps[i].delay));
+      }
+      if(aborted) return;
+
+      // Validate captures
+      const goodFrames = captures.filter(c=>c && c.faceFound);
+      if(goodFrames.length < 1){
+        setErr('No face detected during scan — try better lighting.');
+        return;
+      }
+      // Merge and match tone
+      const merged = L.mergeCaptures(captures);
+      if(!merged){
+        setErr('Could not read skin pixels — try again in better light.');
+        return;
+      }
+      const {tone, ita, confidence} = L.findBestTone(merged);
+      const skinInfo = L.classifySkinType(captures);
+
+      // face-api analysis — retry across every captured frame and the live
+      // video element, then fall back to a face-box aspect-ratio estimate.
+      await apiPromise.catch(()=>{});
+      // If models are still loading, give them up to ~2s more before giving up.
+      for(let w=0; w<20 && !window.__faceApiReady; w++){
+        await new Promise(r=>setTimeout(r, 100));
+      }
+
+      let api = null;
+      if(window.__faceApiReady){
+        // Freshest frame first (best exposure/WB), then older ones.
+        const ordered = [...captures].reverse().filter(c=>c && c.canvas);
+        for(const c of ordered){
+          if(aborted) return;
+          api = await L.analyzeFaceWithApi(c.canvas);
+          if(api) break;
+        }
+        // Last-ditch: run on the live video element directly (full-res source
+        // often succeeds where a downscaled capture did not).
+        if(!api && L.videoEl && L.videoEl.videoWidth){
+          api = await L.analyzeFaceWithApi(L.videoEl);
+        }
+        // If we used pre-captured frames, also try them directly at full res.
+        if(!api && preCanvases){
+          for (const c of preCanvases) {
+            if(aborted) return;
+            api = await L.analyzeFaceWithApi(c);
+            if(api) break;
+          }
+        }
+      }
+
+      // Fallback: derive a coarse face shape from the captured face-box
+      // proportions so we never show "Landmarks unavailable" when we actually
+      // did find a face.
+      let derivedShape = null;
+      if(!api){
+        const lg = [...captures].reverse().find(c=>c && c.faceFound && c.faceBox);
+        if(lg){
+          const ratio = lg.faceBox.w / lg.faceBox.h;
+          if(ratio > 0.95)      derivedShape = {shape:'Round',   sub:'Soft curves · estimated from proportions'};
+          else if(ratio > 0.85) derivedShape = {shape:'Square',  sub:'Balanced width · estimated from proportions'};
+          else if(ratio > 0.76) derivedShape = {shape:'Oval',    sub:'Balanced proportions · estimated'};
+          else                  derivedShape = {shape:'Oblong',  sub:'Longer than wide · estimated from proportions'};
+        }
+      }
+
+      const results = {
+        tone, ita, confidence,
+        rgb: merged,
+        faceShape:    api ? api.shape : (derivedShape ? derivedShape.shape : 'Detected'),
+        faceShapeSub: api ? (api.sub + (api.age?' · ~'+api.age+' yrs':''))
+                          : (derivedShape ? derivedShape.sub : 'Landmarks unavailable'),
+        skinType: skinInfo.type,
+        skinTypeSub: skinInfo.sub,
+        age: api ? api.age : null,
+        expression: api ? api.expression : null,
+      };
+
+      if(aborted) return;
+      onResults && onResults(results);
+      setTimeout(()=>{ if(!aborted) onDone(); }, 600);
+    }
+
+    runScan().catch(e=>{
+      console.warn('scan failed:', e);
+      setErr('Scan failed: ' + (e.message||String(e)));
+    });
+
+    return ()=>{ aborted = true; cancelledRef.current=true; };
+  }, [open]);
+
+  if (!open) return null;
+  const pct = Math.min(100, (step/5)*100);
+  const labels = [
+    'Face & landmark detection',
+    'Melanin & skin zone mapping',
+    'Multi-frame tone sampling',
+    'ITA phototype & undertone',
+    'Shade matching & recommendations',
+  ];
+  return (
+    <div className="scan-modal">
+      <div className="scan-modal-inner">
+        <div className="ring-wrap">
+          <svg viewBox="0 0 80 80">
+            <circle cx="40" cy="40" r="35" fill="none" stroke="rgba(255,255,255,.15)" strokeWidth="2"/>
+            <circle cx="40" cy="40" r="35" fill="none" stroke="#ffc9a8" strokeWidth="2" strokeLinecap="round"
+              strokeDasharray="220" strokeDashoffset={220-(220*pct/100)}
+              style={{transform:'rotate(-90deg)',transformOrigin:'50% 50%',transition:'stroke-dashoffset .4s'}}/>
+          </svg>
+          <div className="ring-pct">{Math.round(pct)}<span>%</span></div>
+        </div>
+        <h3 className="modal-title">{err ? 'Scan error' : 'Analysing your face'}</h3>
+        <p className="modal-sub">{err || (labels[Math.min(step,4)]+'…')}</p>
+        {err && (
+          <button className="scan-btn" style={{marginTop:16, width:'auto'}} onClick={onDone}>Close</button>
+        )}
+        <div className="modal-steps">
+          {labels.map((l,i)=>(
+            <div key={i} className="modal-step">
+              <span className={`step-ico ${i<step?'done':i===step?'active':''}`}>{i<step?'✓':i+1}</span>
+              <span>{l}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+window.LumaScanModal = ScanModal;
+
+})();
+</script>
+<script type="text/babel" data-presets="react" data-label="AuthModal">
+(function(){
+/* global React */
+const { useState, useEffect, useRef } = React;
+
+function AuthModal({ open, initialMode, onClose, onAuthed }){
+  const [mode, setMode] = useState(initialMode === 'signup' ? 'signup' : 'signin');
+  const [email, setEmail] = useState('');
+  const [pin, setPin] = useState('');
+  const [pin2, setPin2] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  const [notice, setNotice] = useState('');
+  const emailRef = useRef(null);
+
+  useEffect(() => {
+    if (!open) return;
+    setMode(initialMode === 'signup' ? 'signup' : 'signin');
+    setPin(''); setPin2(''); setErr(''); setNotice('');
+    setTimeout(() => emailRef.current && emailRef.current.focus(), 60);
+  }, [open, initialMode]);
+
+  // Escape closes
+  useEffect(() => {
+    if (!open) return;
+    function onKey(e){ if (e.key === 'Escape') onClose && onClose(); }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open, onClose]);
+
+  if (!open) return null;
+
+  const Auth = window.LumaAuth;
+  const configured = Auth && Auth.isConfigured();
+
+  function digitsOnly(v){ return (v||'').replace(/\D+/g,'').slice(0,6); }
+
+  async function submit(e){
+    e && e.preventDefault && e.preventDefault();
+    setErr(''); setNotice('');
+    if (!Auth) { setErr('Auth is not available.'); return; }
+    if (!configured) {
+      setErr('Cloud profile is not configured yet. See supabase-schema.sql for setup.');
+      return;
+    }
+    if (mode === 'signup' && pin !== pin2) {
+      setErr('PINs do not match.'); return;
+    }
+    setBusy(true);
+    try {
+      const fn = mode === 'signup' ? Auth.signUp : Auth.signIn;
+      const { data, error } = await fn(email, pin);
+      if (error) {
+        setErr(error.message || 'Something went wrong. Please try again.');
+      } else if (mode === 'signup' && data && data.user && !data.session) {
+        // Email confirmation ON → no session yet.
+        setNotice('Almost done! Check your email to verify your account, then sign in.');
+        setMode('signin');
+      } else {
+        onAuthed && onAuthed(data && data.session || null);
+        onClose && onClose();
+      }
+    } catch(x) {
+      setErr((x && x.message) || 'Unexpected error.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="auth-backdrop" onClick={(e)=>{ if(e.target===e.currentTarget) onClose && onClose(); }}>
+      <div className="auth-card" role="dialog" aria-modal="true" aria-label="Sign in">
+        <button className="auth-close" aria-label="Close" onClick={onClose}>×</button>
+        <div className="auth-brand">L<span>UM</span>A</div>
+        <div className="auth-subtitle">{mode === 'signup' ? 'Create your profile' : 'Welcome back'}</div>
+
+        <div className="auth-tabs" role="tablist">
+          <button className={'auth-tab'+(mode==='signin'?' active':'')} onClick={()=>{setMode('signin'); setErr(''); setNotice('');}}>Sign in</button>
+          <button className={'auth-tab'+(mode==='signup'?' active':'')} onClick={()=>{setMode('signup'); setErr(''); setNotice('');}}>Create</button>
+        </div>
+
+        {!configured && (
+          <div className="auth-unconfigured">
+            <strong>Offline mode</strong>
+            Cloud profile sync is not configured yet. Open <code>index.html</code> and set
+            <code> LUMA_SUPABASE_URL</code> + <code>LUMA_SUPABASE_ANON_KEY</code> to enable accounts.
+          </div>
+        )}
+
+        {err && <div className="auth-error">{err}</div>}
+        {notice && <div className="auth-success">{notice}</div>}
+
+        <form onSubmit={submit} autoComplete="on">
+          <div className="auth-field">
+            <label className="auth-label" htmlFor="auth-email">Email</label>
+            <input
+              id="auth-email" ref={emailRef}
+              className="auth-input"
+              type="email" inputMode="email" autoComplete="email"
+              placeholder="you@example.com"
+              value={email} onChange={(e)=>setEmail(e.target.value)}
+              required
+            />
+          </div>
+
+          <div className="auth-field">
+            <label className="auth-label" htmlFor="auth-pin">6-digit PIN</label>
+            <input
+              id="auth-pin"
+              className="auth-input auth-pin-input"
+              type="password" inputMode="numeric" autoComplete={mode==='signup'?'new-password':'current-password'}
+              maxLength={6} placeholder="••••••"
+              value={pin} onChange={(e)=>setPin(digitsOnly(e.target.value))}
+              required
+            />
+            {mode==='signup' && (
+              <div className="auth-help">Choose any 6 digits. This PIN protects your profile — don't share it.</div>
+            )}
+          </div>
+
+          {mode === 'signup' && (
+            <div className="auth-field">
+              <label className="auth-label" htmlFor="auth-pin2">Confirm PIN</label>
+              <input
+                id="auth-pin2"
+                className="auth-input auth-pin-input"
+                type="password" inputMode="numeric" autoComplete="new-password"
+                maxLength={6} placeholder="••••••"
+                value={pin2} onChange={(e)=>setPin2(digitsOnly(e.target.value))}
+                required
+              />
+            </div>
+          )}
+
+          <button className="auth-submit" type="submit"
+            disabled={busy || !email || pin.length!==6 || (mode==='signup' && pin2.length!==6)}>
+            {busy ? 'Please wait…' : (mode === 'signup' ? 'Create profile' : 'Sign in')}
+          </button>
+        </form>
+
+        <div className="auth-footer">
+          {mode === 'signup'
+            ? <>We store <b>derived metrics only</b> — face shape, tone, preferences. <br/>No face images or biometric data are saved.</>
+            : <>Forgot your PIN? Create a new profile with a different email.</>
+          }
+        </div>
+      </div>
+    </div>
+  );
+}
+
+window.LumaAuthModal = AuthModal;
+
+})();
+</script>
+<script type="text/babel" data-presets="react" data-label="ProfileView">
+(function(){
+/* global React */
+const { useState, useEffect } = React;
+
+function fmtDate(s){
+  if (!s) return '—';
+  try {
+    const d = new Date(s);
+    return d.toLocaleDateString(undefined,{year:'numeric',month:'short',day:'numeric'}) +
+           ' · ' + d.toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'});
+  } catch(_) { return String(s); }
+}
+function initialOf(email){
+  if (!email) return '?';
+  const c = email.trim()[0];
+  return c ? c.toUpperCase() : '?';
+}
+
+function ProfileView({ user, onSignOut, onBack }){
+  const [latest, setLatest] = useState(null);
+  const [history, setHistory] = useState([]);
+  const [prefs, setPrefs] = useState(null);
+  const [savedCount, setSavedCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const Auth = window.LumaAuth;
+      if (!Auth) return;
+      setLoading(true);
+      const [scans, p, saved] = await Promise.all([
+        Auth.listScans(20),
+        Auth.getPreferences(),
+        Auth.listSavedProducts(),
+      ]);
+      if (!alive) return;
+      setHistory(scans || []);
+      setLatest((scans && scans[0]) || null);
+      setPrefs(p || null);
+      setSavedCount((saved || []).length);
+      setLoading(false);
+    })();
+    return () => { alive = false; };
+  }, [user && user.id]);
+
+  const email = (user && user.email) || '';
+
+  return (
+    <div className="profile-wrap">
+      <div className="profile-header">
+        <div className="profile-avatar">{initialOf(email)}</div>
+        <div className="profile-heading">
+          <h1>My Profile</h1>
+          <div className="profile-email">{email}</div>
+        </div>
+        <button className="profile-signout" onClick={onSignOut}>Sign out</button>
+      </div>
+
+      <div className="profile-grid">
+        {/* Latest scan */}
+        <div className="profile-card">
+          <h3>Latest Scan</h3>
+          {loading ? <div className="profile-empty">Loading…</div>
+            : latest ? (
+              <>
+                <div className="profile-kv">
+                  <span className="profile-kv-k">Face shape</span>
+                  <span className="profile-kv-v">{latest.face_shape || '—'}{latest.face_shape_sub ? ' · '+latest.face_shape_sub : ''}</span>
+                </div>
+                <div className="profile-kv">
+                  <span className="profile-kv-k">Tone</span>
+                  <span className="profile-kv-v">
+                    {latest.tone_color && <span className="profile-tone-dot" style={{background:latest.tone_color}}></span>}
+                    {latest.tone_name || '—'}
+                  </span>
+                </div>
+                <div className="profile-kv">
+                  <span className="profile-kv-k">Undertone</span>
+                  <span className="profile-kv-v">{latest.tone_undertone || '—'}</span>
+                </div>
+                <div className="profile-kv">
+                  <span className="profile-kv-k">ITA</span>
+                  <span className="profile-kv-v">{latest.ita != null ? Number(latest.ita).toFixed(1) : '—'}</span>
+                </div>
+                <div className="profile-kv">
+                  <span className="profile-kv-k">Skin type</span>
+                  <span className="profile-kv-v">{latest.skin_type || '—'}{latest.skin_type_sub ? ' · '+latest.skin_type_sub : ''}</span>
+                </div>
+                <div className="profile-kv">
+                  <span className="profile-kv-k">Captured</span>
+                  <span className="profile-kv-v">{fmtDate(latest.created_at)}</span>
+                </div>
+              </>
+            ) : (
+              <div className="profile-empty">No scans yet. Run the scanner on the home page to save your first one.</div>
+            )
+          }
+        </div>
+
+        {/* Preferences */}
+        <div className="profile-card">
+          <h3>Preferences</h3>
+          {loading ? <div className="profile-empty">Loading…</div>
+            : prefs ? (
+              <>
+                <div className="profile-kv">
+                  <span className="profile-kv-k">Budget</span>
+                  <span className="profile-kv-v">{prefs.budget != null ? '$' + prefs.budget : '—'}</span>
+                </div>
+                <div className="profile-kv">
+                  <span className="profile-kv-k">Coverage</span>
+                  <span className="profile-kv-v">{prefs.coverage || '—'}</span>
+                </div>
+                <div className="profile-kv">
+                  <span className="profile-kv-k">Preferences</span>
+                  <span className="profile-kv-v">{(prefs.prefs && prefs.prefs.length) ? prefs.prefs.join(', ') : '—'}</span>
+                </div>
+                <div className="profile-kv">
+                  <span className="profile-kv-k">Concerns</span>
+                  <span className="profile-kv-v">{(prefs.concerns && prefs.concerns.length) ? prefs.concerns.join(', ') : '—'}</span>
+                </div>
+                <div className="profile-kv">
+                  <span className="profile-kv-k">Updated</span>
+                  <span className="profile-kv-v">{fmtDate(prefs.updated_at)}</span>
+                </div>
+              </>
+            ) : (
+              <div className="profile-empty">No preferences saved yet. Adjust the filters on the home page.</div>
+            )
+          }
+        </div>
+
+        {/* Saved products */}
+        <div className="profile-card">
+          <h3>Saved Products</h3>
+          <div className="profile-kv">
+            <span className="profile-kv-k">Total saved</span>
+            <span className="profile-kv-v">{loading ? '…' : savedCount}</span>
+          </div>
+          {!loading && savedCount === 0 && (
+            <div className="profile-empty" style={{marginTop:8}}>
+              Tap the heart on any product to save it here.
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Scan history */}
+      <div className="profile-section-title">Scan History</div>
+      {loading ? <div className="profile-empty">Loading…</div>
+        : history.length === 0 ? (
+          <div className="profile-empty">You haven't saved any scans yet.</div>
+        ) : (
+          <div className="profile-history">
+            {history.map(h => (
+              <div key={h.id} className="profile-history-row">
+                <div className="profile-history-date">{fmtDate(h.created_at)}</div>
+                <div className="profile-history-meta">
+                  {h.tone_color && <span className="profile-tone-dot" style={{background:h.tone_color}}></span>}
+                  <b>{h.tone_name || '—'}</b>
+                  {h.face_shape ? <> · {h.face_shape}</> : null}
+                  {h.skin_type ? <> · {h.skin_type}</> : null}
+                  {h.ita != null ? <> · ITA {Number(h.ita).toFixed(0)}</> : null}
+                </div>
+              </div>
+            ))}
+          </div>
+        )
+      }
+
+      <div className="profile-danger">
+        <h3>Privacy</h3>
+        <p>
+          LUMA never stores face images, landmarks, or any biometric data — cloud or local.
+          Only the derived metrics shown above are saved to your profile.
+        </p>
+      </div>
+
+      <div style={{textAlign:'center',marginTop:30}}>
+        <button className="profile-signout" onClick={onBack}>← Back to scanner</button>
+      </div>
+    </div>
+  );
+}
+
+window.LumaProfileView = ProfileView;
+
+})();
+</script>
+<script type="text/babel" data-presets="react" data-label="App">
+(function(){
+/* global React */
+const { useState, useEffect, useRef } = React;
+
+// ---- Helpers to shape scan results for persistence -------------------------
+function scanResultToRow(res){
+  if (!res) return null;
+  const out = {};
+  if (typeof res.faceShape === 'string')    out.face_shape = res.faceShape;
+  if (typeof res.faceShapeSub === 'string') out.face_shape_sub = res.faceShapeSub;
+  if (res.tone && typeof res.tone === 'object') {
+    out.tone_id        = res.tone.id || null;
+    out.tone_name      = res.tone.name || null;
+    out.tone_color     = res.tone.color || null;
+    out.tone_undertone = res.tone.undertone || null;
+  }
+  if (typeof res.ita === 'number')        out.ita = res.ita;
+  if (typeof res.confidence === 'number') out.confidence = Math.round(res.confidence);
+  if (typeof res.skinType === 'string')    out.skin_type = res.skinType;
+  if (typeof res.skinTypeSub === 'string') out.skin_type_sub = res.skinTypeSub;
+  // Pull liveness metadata from the shared bucket the Scanner fills in.
+  const liveness = (window.__luma && window.__luma.liveness) || res.liveness || null;
+  if (liveness) out.liveness = liveness;
+  if (typeof res.expression === 'string') out.expression = res.expression;
+  if (typeof res.age === 'number')        out.age = Math.round(res.age);
+  return out;
+}
+function App() {
+  // Scanner / product state
+  const [scanState, setScanState] = useState('idle');
+  const [modalOpen, setModalOpen] = useState(false);
+  const [scanResults, setScanResults] = useState(null);
+  const [tone, setTone] = useState(window.LUMA_TONES.light[1]);
+  const [budget, setBudget] = useState(300);
+  const [prefs, setPrefs] = useState([]);
+  const [concerns, setConcerns] = useState([]);
+  const [coverage, setCoverage] = useState('');
+  const [saved, setSaved] = useState(new Set());
+
+  // Auth + routing
+  const [route, setRoute] = useState('home'); // 'home' | 'profile'
+  const [user, setUser] = useState(null);
+  const [authOpen, setAuthOpen] = useState(false);
+  const [authMode, setAuthMode] = useState('signin');
+  const [authReady, setAuthReady] = useState(false);
+
+  // Track what we've already synced so we don't echo server writes back.
+  const hydratingRef = useRef(false);
+  const lastPrefsSigRef = useRef('');
+  const lastSavedSigRef = useRef('');
+
+  // ---- Auth bootstrap -----------------------------------------------------
+  useEffect(() => {
+    const Auth = window.LumaAuth;
+    if (!Auth) { setAuthReady(true); return; }
+    let alive = true;
+    (async () => {
+      const s = await Auth.getSession();
+      if (!alive) return;
+      setUser(s && s.user ? s.user : null);
+      setAuthReady(true);
+    })();
+    const unsub = Auth.onAuthChange((session) => {
+      if (!alive) return;
+      setUser(session && session.user ? session.user : null);
+    });
+    return () => { alive = false; unsub && unsub(); };
+  }, []);
+
+  // ---- Rehydrate profile data on sign-in ---------------------------------
+  useEffect(() => {
+    if (!user) return;
+    const Auth = window.LumaAuth;
+    if (!Auth) return;
+    let alive = true;
+    (async () => {
+      hydratingRef.current = true;
+      try {
+        const [p, sp, latest] = await Promise.all([
+          Auth.getPreferences(),
+          Auth.listSavedProducts(),
+          Auth.latestScan(),
+        ]);
+        if (!alive) return;
+        if (p) {
+          if (typeof p.budget === 'number') setBudget(p.budget);
+          if (Array.isArray(p.prefs))       setPrefs(p.prefs);
+          if (Array.isArray(p.concerns))    setConcerns(p.concerns);
+          if (typeof p.coverage === 'string') setCoverage(p.coverage || '');
+        }
+        if (sp && sp.length) {
+          const keys = new Set(sp.map(r => r.brand + '|' + r.name));
+          setSaved(keys);
+          lastSavedSigRef.current = Array.from(keys).sort().join(',');
+        }
+        if (latest && latest.tone_id && latest.tone_name && latest.tone_color) {
+          setTone({
+            id: latest.tone_id,
+            name: latest.tone_name,
+            color: latest.tone_color,
+            undertone: latest.tone_undertone || ''
+          });
+        }
+      } finally {
+        // Let React flush state before we re-enable sync listeners.
+        setTimeout(() => { hydratingRef.current = false; }, 60);
+      }
+    })();
+    return () => { alive = false; };
+  }, [user && user.id]);
+
+  // ---- Persist preferences (debounced) -----------------------------------
+  useEffect(() => {
+    if (!user || hydratingRef.current) return;
+    const Auth = window.LumaAuth;
+    if (!Auth || !Auth.isConfigured()) return;
+    const sig = JSON.stringify({ budget, prefs, concerns, coverage, toneId: tone && tone.id });
+    if (sig === lastPrefsSigRef.current) return;
+    lastPrefsSigRef.current = sig;
+    const t = setTimeout(() => {
+      Auth.upsertPreferences({
+        budget: Number(budget) || 0,
+        prefs: prefs || [],
+        concerns: concerns || [],
+        coverage: coverage || null,
+        selected_tone_id: (tone && tone.id) || null,
+      }).catch(err => console.warn('[LUMA] upsert prefs failed:', err));
+    }, 600);
+    return () => clearTimeout(t);
+  }, [user && user.id, budget, prefs, concerns, coverage, tone && tone.id]);
+
+  // ---- Persist saved products (diff against last sig) --------------------
+  useEffect(() => {
+    if (!user || hydratingRef.current) return;
+    const Auth = window.LumaAuth;
+    if (!Auth || !Auth.isConfigured()) return;
+    const keys = Array.from(saved || []).sort();
+    const sig = keys.join(',');
+    if (sig === lastSavedSigRef.current) return;
+    const prev = new Set(lastSavedSigRef.current ? lastSavedSigRef.current.split(',') : []);
+    const next = new Set(keys);
+    lastSavedSigRef.current = sig;
+
+    const added   = keys.filter(k => !prev.has(k));
+    const removed = Array.from(prev).filter(k => !next.has(k));
+    added.forEach(k => {
+      const [brand, ...rest] = k.split('|'); const name = rest.join('|');
+      Auth.addSavedProduct(brand, name).catch(err => console.warn('[LUMA] save product failed:', err));
+    });
+    removed.forEach(k => {
+      const [brand, ...rest] = k.split('|'); const name = rest.join('|');
+      Auth.removeSavedProduct(brand, name).catch(err => console.warn('[LUMA] unsave product failed:', err));
+    });
+  }, [user && user.id, saved]);
+
+  // ---- Actions ------------------------------------------------------------
+  const startScan = () => {
+    setScanResults(null);
+    setScanState('scanning');
+    setModalOpen(true);
+  };
+  const handleResults = (res) => {
+    setScanResults(res);
+    if (res && res.tone) setTone(res.tone);
+    // Persist the scan row (derived metrics only) to the user's profile.
+    if (user && res) {
+      const Auth = window.LumaAuth;
+      if (Auth && Auth.isConfigured()) {
+        const row = scanResultToRow(res);
+        if (row) Auth.insertScan(row).catch(err => console.warn('[LUMA] insert scan failed:', err));
+      }
+    }
+  };
+  const finishScan = () => {
+    setModalOpen(false);
+    setScanState('done');
+  };
+  const requestSignIn = (mode) => {
+    setAuthMode(mode === 'signup' ? 'signup' : 'signin');
+    setAuthOpen(true);
+  };
+  const signOut = async () => {
+    const Auth = window.LumaAuth;
+    if (Auth) await Auth.signOut();
+    setUser(null);
+    setRoute('home');
+    // Clear in-memory saved products so signed-out view doesn't leak rehydrated data.
+    lastPrefsSigRef.current = '';
+    lastSavedSigRef.current = '';
+  };
+  const navigate = (target) => {
+    if (target === 'profile' && !user) { requestSignIn('signin'); return; }
+    setRoute(target);
+  };
+
+  return (
+    <>
+      <window.LumaNav
+        user={user}
+        route={route}
+        onNavigate={navigate}
+        onRequestSignIn={requestSignIn}
+        onSignOut={signOut}
+      />
+      {route === 'profile' && user ? (
+        <window.LumaProfileView
+          user={user}
+          onSignOut={signOut}
+          onBack={() => setRoute('home')}
+        />
+      ) : (
+        <div className="app">
+          <aside className="left-panel">
+            <window.LumaScanner scanState={scanState} tone={tone} onScan={startScan} results={scanResults}/>
+            <window.LumaTonePicker tone={tone} onSelect={setTone}/>
+            <window.LumaFilters
+              budget={budget} setBudget={setBudget}
+              prefs={prefs} setPrefs={setPrefs}
+              concerns={concerns} setConcerns={setConcerns}
+              coverage={coverage} setCoverage={setCoverage}/>
+          </aside>
+          <main className="right-panel">
+            <window.LumaMarketplace saved={saved} setSaved={setSaved}
+              budget={budget} prefs={prefs} concerns={concerns} coverage={coverage}/>
+          </main>
+        </div>
+      )}
+      <window.LumaScanModal open={modalOpen} onDone={finishScan} onResults={handleResults}/>
+      {window.LumaAuthModal && (
+        <window.LumaAuthModal
+          open={authOpen}
+          initialMode={authMode}
+          onClose={() => setAuthOpen(false)}
+          onAuthed={(session) => {
+            if (session && session.user) setUser(session.user);
+            setAuthOpen(false);
+          }}
+        />
+      )}
+    </>
+  );
+}
+window.LumaApp = App;
+
+})();
+</script>
+<script>
+(function(){
+  var msg = document.getElementById('boot-msg');
+  var tries = 0;
+  function setMsg(t){ if(msg) msg.textContent = t; }
+  function showError(e){
+    setMsg('Error — see console');
+    var root = document.getElementById('root');
+    if (root) {
+      root.innerHTML = '<div style="padding:40px;color:#fff;font-family:sans-serif;max-width:720px;margin:60px auto;">'+
+        '<h2 style="font-weight:300;font-size:28px;margin:0 0 12px;">LUMA couldn\'t start</h2>'+
+        '<p style="opacity:.8;line-height:1.5;">'+(e && (e.message||e.toString()))+'</p>'+
+        '<p style="opacity:.6;font-size:13px;margin-top:20px;">Open DevTools (F12) → Console for details.</p></div>';
+    }
+    console.error('[LUMA boot]', e);
+  }
+  function mount(){
+    try {
+      var R = window.React, RD = window.ReactDOM, App = window.LumaApp;
+      if (!R)   { setMsg('Waiting for React…');   return retry(); }
+      if (!RD)  { setMsg('Waiting for ReactDOM…'); return retry(); }
+      if (!App) { setMsg('Waiting for components…'); return retry(); }
+      if (!window.LumaNav || !window.LumaScanner || !window.LumaTonePicker ||
+          !window.LumaFilters || !window.LumaProductCard || !window.LumaMarketplace ||
+          !window.LumaScanModal || !window.LumaAuthModal || !window.LumaProfileView) {
+        setMsg('Waiting for components…'); return retry();
+      }
+      var root = RD.createRoot(document.getElementById('root'));
+      root.render(R.createElement(App));
+    } catch(e) { showError(e); }
+  }
+  function retry(){
+    tries++;
+    if (tries > 200) return showError(new Error('Timeout — Babel or React CDN did not load. Check network tab.'));
+    setTimeout(mount, 50);
+  }
+  window.addEventListener('error', function(ev){ showError(ev.error || ev.message); });
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function(){ setTimeout(mount, 100); });
+  } else {
+    setTimeout(mount, 100);
+  }
+})();
+</script>
+</body></html>
