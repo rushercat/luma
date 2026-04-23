@@ -81,6 +81,27 @@ create table if not exists public.saved_products (
   primary key (profile_id, brand, name)
 );
 
+-- 5) VISITS -----------------------------------------------------------------
+-- One row per site visit (session-granular). Captures approximate location
+-- via client-side IP geolocation (no PII, no IP stored). Anyone can INSERT,
+-- but only the admin email can SELECT — so normal users can't read analytics.
+create table if not exists public.visits (
+  id uuid primary key default gen_random_uuid(),
+  created_at   timestamptz not null default now(),
+  country      text,        -- full name, e.g. "Germany"
+  country_code text,        -- ISO-2, e.g. "DE"
+  city         text,        -- e.g. "Berlin"
+  region       text,        -- state/region
+  path         text,        -- page path like "/" or "/#profile"
+  referrer     text,        -- document.referrer if present
+  session_id   text         -- random per-session id (dedupes reloads client-side)
+);
+
+create index if not exists visits_created_at_idx
+  on public.visits (created_at desc);
+create index if not exists visits_country_idx
+  on public.visits (country_code);
+
 -- ============================================================================
 -- Row Level Security — every user sees only their own rows.
 -- ============================================================================
@@ -88,12 +109,15 @@ alter table public.profiles         enable row level security;
 alter table public.scans            enable row level security;
 alter table public.preferences      enable row level security;
 alter table public.saved_products   enable row level security;
+alter table public.visits           enable row level security;
 
 -- Drop existing policies first so this script is idempotent.
 drop policy if exists "profiles_self"        on public.profiles;
 drop policy if exists "scans_self"           on public.scans;
 drop policy if exists "preferences_self"     on public.preferences;
 drop policy if exists "saved_products_self"  on public.saved_products;
+drop policy if exists "visits_insert_any"    on public.visits;
+drop policy if exists "visits_select_admin"  on public.visits;
 
 create policy "profiles_self"
   on public.profiles
@@ -118,6 +142,23 @@ create policy "saved_products_self"
   for all
   using  (auth.uid() = profile_id)
   with check (auth.uid() = profile_id);
+
+-- Anyone (even anonymous visitors) can log a visit — but cannot read them back.
+create policy "visits_insert_any"
+  on public.visits
+  for insert
+  to anon, authenticated
+  with check (true);
+
+-- Only the admin email can read the visits table. Keep this email in sync
+-- with LUMA_ADMIN_EMAIL in index.html.
+create policy "visits_select_admin"
+  on public.visits
+  for select
+  to authenticated
+  using (
+    auth.jwt() ->> 'email' = 'kvboxberg9999@gmail.com'
+  );
 
 -- ============================================================================
 -- Auto-create a profile row the first time someone signs up.

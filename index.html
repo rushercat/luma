@@ -1212,6 +1212,61 @@ a:hover { opacity: 0.7; }
     font-size:12px;color:rgba(255,255,255,.5);line-height:1.6;
     padding:8px 0 4px;
   }
+  /* Admin-only analytics card */
+  .profile-card-admin{
+    grid-column:1/-1;
+    background:linear-gradient(180deg, rgba(232,138,122,.10), rgba(232,138,122,.03));
+    border:1px solid rgba(232,138,122,.28);
+  }
+  .profile-card-admin h3{
+    display:flex;align-items:center;gap:10px;
+    color:rgba(255,220,210,.75);
+  }
+  .profile-admin-badge{
+    display:inline-block;
+    font-size:9px;letter-spacing:.22em;
+    padding:3px 7px;border-radius:4px;
+    background:linear-gradient(135deg,#e88a7a,#c86860);
+    color:#fff;font-weight:600;
+  }
+  .profile-admin-stats{
+    display:flex;gap:16px;margin:4px 0 18px;
+  }
+  .profile-admin-stat{
+    flex:1;
+    background:rgba(255,255,255,.03);
+    border:1px solid rgba(255,255,255,.06);
+    border-radius:14px;
+    padding:14px 16px;
+  }
+  .profile-admin-stat-num{
+    font-family:var(--font-serif, 'Playfair Display', serif);
+    font-size:34px;line-height:1;color:#fff;font-weight:500;
+  }
+  .profile-admin-stat-lbl{
+    margin-top:6px;font-size:10px;letter-spacing:.22em;
+    text-transform:uppercase;color:rgba(255,255,255,.5);
+  }
+  .profile-admin-sub{
+    font-size:10px;letter-spacing:.22em;text-transform:uppercase;
+    color:rgba(255,255,255,.45);margin:0 0 10px;
+  }
+  .profile-admin-countries{
+    display:flex;flex-direction:column;gap:6px;
+  }
+  .profile-admin-country{
+    display:flex;align-items:center;gap:10px;
+    padding:8px 10px;border-radius:10px;
+    background:rgba(255,255,255,.025);
+    border:1px solid rgba(255,255,255,.05);
+    font-size:13px;color:#fff;
+  }
+  .profile-admin-flag{font-size:16px;line-height:1}
+  .profile-admin-cname{flex:1;color:rgba(255,255,255,.9)}
+  .profile-admin-ccount{
+    color:rgba(255,220,210,.9);font-weight:500;
+    font-variant-numeric:tabular-nums;
+  }
   .profile-section-title{
     font-family:var(--font-display);font-weight:300;font-size:22px;
     letter-spacing:.02em;margin:12px 0 14px;
@@ -1771,6 +1826,125 @@ window.LUMA_PREFS = [
     return { error: null };
   }
 
+  // ---- 4b. VISIT TRACKING + ANALYTICS -------------------------------------
+  // Admin email who can see the analytics card in the profile tab. Keep in
+  // sync with the RLS policy `visits_select_admin` in supabase-schema.sql.
+  const LUMA_ADMIN_EMAIL = 'kvboxberg9999@gmail.com';
+
+  function isAdminUser(u){
+    if (!u || !u.email) return false;
+    return normEmail(u.email) === LUMA_ADMIN_EMAIL;
+  }
+
+  // Random per-tab id used to dedupe reloads within the same tab.
+  function sessionIdOnce(){
+    try {
+      const KEY = 'luma:session_id';
+      let sid = sessionStorage.getItem(KEY);
+      if (!sid) {
+        sid = (crypto && crypto.randomUUID) ? crypto.randomUUID()
+              : ('s_' + Math.random().toString(36).slice(2) + Date.now().toString(36));
+        sessionStorage.setItem(KEY, sid);
+      }
+      return sid;
+    } catch(_) { return 's_' + Date.now().toString(36); }
+  }
+
+  async function geoLookup(){
+    // ipapi.co — free tier, ~1k req/day, no API key, CORS-enabled.
+    // Returns { country_name, country_code, city, region, ... }.
+    try {
+      const res = await fetch('https://ipapi.co/json/', { cache: 'no-store' });
+      if (!res.ok) return null;
+      const j = await res.json();
+      return {
+        country:      j.country_name || null,
+        country_code: j.country_code || j.country || null,
+        city:         j.city || null,
+        region:       j.region || null
+      };
+    } catch(_) { return null; }
+  }
+
+  // Log a visit. Safe to call on every page load — we gate against reloads
+  // via sessionStorage so one tab session == one row.
+  async function trackVisit(){
+    const c = getClient();
+    if (!c) return;
+    try {
+      const SEEN = 'luma:visit_logged';
+      if (sessionStorage.getItem(SEEN)) return;
+      sessionStorage.setItem(SEEN, '1');
+
+      const geo = await geoLookup() || {};
+      const row = {
+        country:      geo.country      || null,
+        country_code: geo.country_code || null,
+        city:         geo.city         || null,
+        region:       geo.region       || null,
+        path:         (location.pathname || '/') + (location.hash || ''),
+        referrer:     document.referrer || null,
+        session_id:   sessionIdOnce()
+      };
+      // Fire and forget — don't block UI on analytics.
+      await c.from('visits').insert(row);
+    } catch(e) {
+      // Never break the site over analytics.
+      console.debug('[LUMA] visit log skipped:', e && e.message);
+    }
+  }
+
+  // Admin-only analytics summary. Returns null for non-admins or if offline.
+  //   { todayCount, last7Count, topCountries: [{country, country_code, count}] }
+  async function getVisitAnalytics(){
+    const c = getClient();
+    const u = await getUser();
+    if (!c || !isAdminUser(u)) return null;
+
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+    const sevenDaysAgo = new Date(now.getTime() - 7*24*60*60*1000).toISOString();
+
+    try {
+      // Today count
+      const today = await c.from('visits')
+        .select('id', { count: 'exact', head: true })
+        .gte('created_at', startOfToday);
+
+      // Last-7 count
+      const week = await c.from('visits')
+        .select('id', { count: 'exact', head: true })
+        .gte('created_at', sevenDaysAgo);
+
+      // Top countries (last 7 days). We aggregate client-side — the row set is
+      // small and it avoids needing a SQL view.
+      const rows = await c.from('visits')
+        .select('country, country_code')
+        .gte('created_at', sevenDaysAgo)
+        .limit(5000);
+
+      const tally = new Map();
+      (rows.data || []).forEach(r => {
+        const key = (r.country_code || r.country || 'Unknown');
+        const cur = tally.get(key) || { country: r.country || key, country_code: r.country_code || null, count: 0 };
+        cur.count += 1;
+        tally.set(key, cur);
+      });
+      const topCountries = Array.from(tally.values())
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 8);
+
+      return {
+        todayCount:  today.count  || 0,
+        last7Count:  week.count   || 0,
+        topCountries
+      };
+    } catch(e) {
+      console.warn('[LUMA] analytics failed:', e && e.message);
+      return null;
+    }
+  }
+
   // ---- 5. EXPORT ----------------------------------------------------------
   window.LumaAuth = {
     isConfigured, getClient,
@@ -1781,9 +1955,19 @@ window.LUMA_PREFS = [
     listSavedProducts, addSavedProduct, removeSavedProduct,
     deleteMyAccount,
     consumeAuthHash,
+    // analytics
+    trackVisit, getVisitAnalytics, isAdminUser, LUMA_ADMIN_EMAIL,
     // utils (exposed for UI validation)
     validEmail, validPin, normEmail,
   };
+
+  // Fire-and-forget: log this visit as soon as supabase-js is ready.
+  if (isConfigured()) {
+    // Defer until idle so we don't compete with first paint.
+    const kick = () => { trackVisit(); };
+    if ('requestIdleCallback' in window) requestIdleCallback(kick, { timeout: 2500 });
+    else setTimeout(kick, 1200);
+  }
 })();
 </script>
 <script type="text/babel" data-presets="react" data-label="Nav">
@@ -3759,6 +3943,11 @@ function ProfileView({ user, onSignOut, onBack, onAccountDeleted }){
   const [deleting, setDeleting] = useState(false);
   const [delErr, setDelErr] = useState('');
 
+  // Admin-only visitor analytics (loaded separately so non-admins never hit it)
+  const isAdmin = !!(window.LumaAuth && window.LumaAuth.isAdminUser && window.LumaAuth.isAdminUser(user));
+  const [analytics, setAnalytics] = useState(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(isAdmin);
+
   // Build a quick lookup over the product catalog so we can render a
   // swatch dot + category for each saved row.
   const productIndex = React.useMemo(() => {
@@ -3790,6 +3979,34 @@ function ProfileView({ user, onSignOut, onBack, onAccountDeleted }){
     return () => { alive = false; };
   }, [user && user.id]);
 
+  // Load analytics separately — only if this user is the admin.
+  useEffect(() => {
+    if (!isAdmin) { setAnalytics(null); setAnalyticsLoading(false); return; }
+    let alive = true;
+    (async () => {
+      setAnalyticsLoading(true);
+      try {
+        const a = await window.LumaAuth.getVisitAnalytics();
+        if (!alive) return;
+        setAnalytics(a);
+      } catch(_) {
+        if (alive) setAnalytics(null);
+      } finally {
+        if (alive) setAnalyticsLoading(false);
+      }
+    })();
+    return () => { alive = false; };
+  }, [isAdmin, user && user.id]);
+
+  // Tiny helper: ISO-2 country code → flag emoji.
+  function flagOf(cc){
+    if (!cc || cc.length !== 2) return '';
+    const A = 0x1F1E6;
+    const up = cc.toUpperCase();
+    return String.fromCodePoint(A + up.charCodeAt(0) - 65) +
+           String.fromCodePoint(A + up.charCodeAt(1) - 65);
+  }
+
   const email = (user && user.email) || '';
 
   return (
@@ -3804,6 +4021,53 @@ function ProfileView({ user, onSignOut, onBack, onAccountDeleted }){
       </div>
 
       <div className="profile-grid">
+        {/* Admin-only: Visitor Analytics */}
+        {isAdmin && (
+          <div className="profile-card profile-card-admin">
+            <h3>
+              <span className="profile-admin-badge">ADMIN</span>
+              Visitor Analytics
+            </h3>
+            {analyticsLoading ? (
+              <div className="profile-empty">Loading analytics…</div>
+            ) : !analytics ? (
+              <div className="profile-empty">
+                No data yet. Once visitors land on the site, their (approximate)
+                country and city show up here. Make sure the <code>visits</code> table
+                exists in Supabase.
+              </div>
+            ) : (
+              <>
+                <div className="profile-admin-stats">
+                  <div className="profile-admin-stat">
+                    <div className="profile-admin-stat-num">{analytics.todayCount}</div>
+                    <div className="profile-admin-stat-lbl">Views today</div>
+                  </div>
+                  <div className="profile-admin-stat">
+                    <div className="profile-admin-stat-num">{analytics.last7Count}</div>
+                    <div className="profile-admin-stat-lbl">Last 7 days</div>
+                  </div>
+                </div>
+
+                <div className="profile-admin-sub">Top countries · last 7 days</div>
+                {analytics.topCountries.length === 0 ? (
+                  <div className="profile-empty" style={{marginTop:4}}>No visits yet.</div>
+                ) : (
+                  <div className="profile-admin-countries">
+                    {analytics.topCountries.map(c => (
+                      <div key={(c.country_code||c.country)} className="profile-admin-country">
+                        <span className="profile-admin-flag">{flagOf(c.country_code)}</span>
+                        <span className="profile-admin-cname">{c.country || c.country_code || 'Unknown'}</span>
+                        <span className="profile-admin-ccount">{c.count}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
         {/* Latest scan */}
         <div className="profile-card">
           <h3>Latest Scan</h3>
