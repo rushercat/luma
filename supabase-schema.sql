@@ -154,14 +154,20 @@ create policy "visits_insert_any"
   to anon, authenticated
   with check (true);
 
--- Only the admin email can read the visits table. Keep this email in sync
--- with LUMA_ADMIN_EMAIL in index.html.
+-- Only the admin email can read the visits table.
+-- ============================================================================
+-- !! KEEP IN SYNC !!
+-- The email string below MUST match `window.LUMA_CONFIG.adminEmail` in
+-- index.html (search for "LUMA_CONFIG" there). If you change one, change both
+-- and re-run this schema — otherwise the admin analytics card silently fails
+-- (JS says "you're admin", Postgres disagrees, query returns 0 rows).
+-- ============================================================================
 create policy "visits_select_admin"
   on public.visits
   for select
   to authenticated
   using (
-    auth.jwt() ->> 'email' = 'kvboxberg9999@gmail.com'
+    auth.jwt() ->> 'email' = 'kvboxberg9999@gmail.com'  -- LUMA_ADMIN_EMAIL
   );
 
 -- ============================================================================

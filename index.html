@@ -1750,6 +1750,14 @@ window.LUMA_PREFS = [
   window.LUMA_SUPABASE_URL      = window.LUMA_SUPABASE_URL      || 'https://nrktiytgofoxeonhmeln.supabase.co';
   window.LUMA_SUPABASE_ANON_KEY = window.LUMA_SUPABASE_ANON_KEY || 'sb_publishable_iIMLR6tt25emvO1vX3hdAQ_SLjBvqT0';
 
+  // Single source of truth for site-wide config.
+  // NOTE: adminEmail is ALSO hardcoded inside the `visits_select_admin` RLS
+  //       policy in supabase-schema.sql (search "LUMA_ADMIN_EMAIL" there).
+  //       If you change it here, update the SQL and re-run the schema.
+  window.LUMA_CONFIG = window.LUMA_CONFIG || {
+    adminEmail: 'kvboxberg9999@gmail.com'
+  };
+
   // ---- 2. CLIENT (lazy) ---------------------------------------------------
   let _client = null;
   let _warned = false;
@@ -1951,9 +1959,10 @@ window.LUMA_PREFS = [
   }
 
   // ---- 4b. VISIT TRACKING + ANALYTICS -------------------------------------
-  // Admin email who can see the analytics card in the profile tab. Keep in
-  // sync with the RLS policy `visits_select_admin` in supabase-schema.sql.
-  const LUMA_ADMIN_EMAIL = 'kvboxberg9999@gmail.com';
+  // Admin email who can see the analytics card in the profile tab. Pulled from
+  // the single-source-of-truth LUMA_CONFIG above. The matching value ALSO
+  // lives in supabase-schema.sql's `visits_select_admin` policy — keep in sync.
+  const LUMA_ADMIN_EMAIL = (window.LUMA_CONFIG && window.LUMA_CONFIG.adminEmail) || 'kvboxberg9999@gmail.com';
 
   function isAdminUser(u){
     if (!u || !u.email) return false;
@@ -1974,20 +1983,73 @@ window.LUMA_PREFS = [
     } catch(_) { return 's_' + Date.now().toString(36); }
   }
 
+  // Coerce an arbitrary value to a safe string for storage: non-strings → null,
+  // strip control chars and angle brackets, collapse whitespace, cap length.
+  // We do this defensively because `geoLookup` pulls from a third-party API.
+  function sanitizeGeoString(v, maxLen){
+    if (typeof v !== 'string') return null;
+    let s = v
+      .replace(/[\u0000-\u001F\u007F]/g, '')        // control chars
+      .replace(/[<>]/g, '')                         // defang HTML-ish markers
+      .replace(/\s+/g, ' ')
+      .trim();
+    if (!s) return null;
+    if (maxLen && s.length > maxLen) s = s.slice(0, maxLen);
+    return s;
+  }
+  function sanitizeCountryCode(v){
+    if (typeof v !== 'string') return null;
+    const s = v.trim().toUpperCase();
+    // ISO-3166 alpha-2 is exactly two letters. Reject anything else.
+    return /^[A-Z]{2}$/.test(s) ? s : null;
+  }
+
   async function geoLookup(){
     // ipapi.co — free tier, ~1k req/day, no API key, CORS-enabled.
     // Returns { country_name, country_code, city, region, ... }.
+    // We validate the response shape and sanitize every field before storing
+    // it, because the response is third-party data and we do NOT want an
+    // upstream bug/breach to land raw strings in our DB.
     try {
       const res = await fetch('https://ipapi.co/json/', { cache: 'no-store' });
       if (!res.ok) return null;
       const j = await res.json();
+      if (!j || typeof j !== 'object') return null;
+      // Some providers signal rate-limit/error via an `error` field.
+      if (j.error) return null;
       return {
-        country:      j.country_name || null,
-        country_code: j.country_code || j.country || null,
-        city:         j.city || null,
-        region:       j.region || null
+        country:      sanitizeGeoString(j.country_name, 80),
+        country_code: sanitizeCountryCode(j.country_code || j.country),
+        city:         sanitizeGeoString(j.city, 80),
+        region:       sanitizeGeoString(j.region, 80)
       };
     } catch(_) { return null; }
+  }
+
+  // Strip Supabase-style auth tokens from a URL hash before we persist it.
+  // When a user arrives from an email verification / recovery / magic-link
+  // flow, location.hash looks like:
+  //   #access_token=ey…&refresh_token=…&expires_in=3600&type=recovery
+  // We do NOT want those tokens sitting in the visits table at rest.
+  function sanitizeHash(hash){
+    if (!hash) return '';
+    // Remove leading '#'
+    const h = hash.replace(/^#/, '');
+    // Fast path: no key=value pairs → safe to keep verbatim (e.g. "#profile")
+    if (!/[=&]/.test(h)) return '#' + h;
+    const BLOCKED = new Set([
+      'access_token','refresh_token','id_token','provider_token',
+      'provider_refresh_token','token','apikey','authorization'
+    ]);
+    const kept = [];
+    for (const part of h.split('&')) {
+      const [rawKey] = part.split('=');
+      const key = (rawKey || '').toLowerCase();
+      if (!key) continue;
+      if (BLOCKED.has(key)) continue;
+      kept.push(part);
+    }
+    return kept.length ? '#' + kept.join('&') : '';
   }
 
   // Log a visit. Safe to call on every page load — we gate against reloads
@@ -2001,13 +2063,15 @@ window.LUMA_PREFS = [
       sessionStorage.setItem(SEEN, '1');
 
       const geo = await geoLookup() || {};
+      const safePath = ((location.pathname || '/') + sanitizeHash(location.hash || '')).slice(0, 300);
+      const safeReferrer = (document.referrer || '').slice(0, 500) || null;
       const row = {
         country:      geo.country      || null,
         country_code: geo.country_code || null,
         city:         geo.city         || null,
         region:       geo.region       || null,
-        path:         (location.pathname || '/') + (location.hash || ''),
-        referrer:     document.referrer || null,
+        path:         safePath,
+        referrer:     safeReferrer,
         session_id:   sessionIdOnce()
       };
       // Fire and forget — don't block UI on analytics.
