@@ -1247,6 +1247,40 @@ a:hover { opacity: 0.7; }
   }
   .profile-danger button:hover{background:rgba(248,168,156,.1)}
 
+  /* Post-verification toast */
+  .luma-toast{
+    position:fixed;top:84px;left:50%;transform:translateX(-50%);
+    z-index:250;max-width:520px;width:calc(100% - 40px);
+    padding:14px 44px 14px 18px;border-radius:14px;
+    font-family:var(--font-body);font-size:13px;line-height:1.5;
+    color:#fff;
+    background:linear-gradient(180deg, rgba(30,50,40,.96), rgba(22,36,30,.96));
+    border:1px solid rgba(168,232,200,.45);
+    box-shadow:0 16px 48px rgba(0,0,0,.45);
+    backdrop-filter:blur(12px);
+    -webkit-backdrop-filter:blur(12px);
+    animation:toastIn .35s cubic-bezier(.2,.9,.3,1);
+  }
+  .luma-toast.error{
+    background:linear-gradient(180deg, rgba(50,30,34,.96), rgba(36,22,26,.96));
+    border-color:rgba(248,168,156,.45);
+  }
+  .luma-toast strong{
+    display:block;font-weight:500;letter-spacing:.14em;text-transform:uppercase;
+    font-size:10px;color:#a8e8c8;margin-bottom:4px;
+  }
+  .luma-toast.error strong{color:#f8a89c}
+  .luma-toast-close{
+    position:absolute;top:8px;right:8px;
+    width:28px;height:28px;border-radius:50%;
+    background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);
+    color:#fff;font-size:14px;line-height:1;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+    transition:background .2s;
+  }
+  .luma-toast-close:hover{background:rgba(255,255,255,.14)}
+  @keyframes toastIn{from{opacity:0;transform:translate(-50%,-8px)}to{opacity:1;transform:translate(-50%,0)}}
+
   .profile-gate{
     max-width:480px;margin:80px auto;padding:0 24px;text-align:center;color:#fff;
   }
@@ -1503,9 +1537,31 @@ window.LUMA_PREFS = [
     _client = window.supabase.createClient(
       window.LUMA_SUPABASE_URL,
       window.LUMA_SUPABASE_ANON_KEY,
-      { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false } }
+      { auth: {
+          persistSession: true,
+          autoRefreshToken: true,
+          detectSessionInUrl: true,   // auto-consume tokens from email links
+          flowType: 'implicit'
+        }
+      }
     );
     return _client;
+  }
+
+  // When the user lands from an email verification / recovery link, Supabase
+  // leaves a hash fragment behind (#access_token=…&type=signup). We expose a
+  // tiny helper so the UI can detect that and show a friendly banner.
+  function consumeAuthHash(){
+    const h = (window.location.hash || '').replace(/^#/, '');
+    if (!h) return null;
+    const p = new URLSearchParams(h);
+    const type = p.get('type');
+    const err  = p.get('error_description') || p.get('error');
+    if (!type && !err) return null;
+    // Clean the URL so reloads don't re-trigger banners.
+    try { history.replaceState(null, '', window.location.pathname + window.location.search); } catch(_) {}
+    if (err) return { kind: 'error', message: err.replace(/\+/g,' ') };
+    return { kind: type }; // 'signup' | 'recovery' | 'magiclink' | 'invite' | 'email_change'
   }
 
   // ---- 3. AUTH HELPERS ----------------------------------------------------
@@ -1647,6 +1703,7 @@ window.LUMA_PREFS = [
     insertScan, listScans, latestScan,
     getPreferences, upsertPreferences,
     listSavedProducts, addSavedProduct, removeSavedProduct,
+    consumeAuthHash,
     // utils (exposed for UI validation)
     validEmail, validPin, normEmail,
   };
@@ -3713,6 +3770,7 @@ function App() {
   const [authOpen, setAuthOpen] = useState(false);
   const [authMode, setAuthMode] = useState('signin');
   const [authReady, setAuthReady] = useState(false);
+  const [toast, setToast] = useState(null); // {kind:'success'|'error', title, body}
 
   // Track what we've already synced so we don't echo server writes back.
   const hydratingRef = useRef(false);
@@ -3724,7 +3782,32 @@ function App() {
     const Auth = window.LumaAuth;
     if (!Auth) { setAuthReady(true); return; }
     let alive = true;
+
+    // Detect arrival from an email verification / recovery / magic-link click.
+    // Supabase drops tokens in location.hash which it processes automatically
+    // (detectSessionInUrl:true); we just harvest the `type` to show a banner.
+    try {
+      const hashInfo = Auth.consumeAuthHash && Auth.consumeAuthHash();
+      if (hashInfo) {
+        if (hashInfo.kind === 'error') {
+          setToast({ kind:'error', title:'Link problem',
+            body: hashInfo.message || 'That link is invalid or has expired. Try signing in.' });
+        } else if (hashInfo.kind === 'signup') {
+          setToast({ kind:'success', title:'Account verified',
+            body:'Welcome to LUMA — your email is confirmed and you\'re signed in.' });
+        } else if (hashInfo.kind === 'recovery') {
+          setToast({ kind:'success', title:'Recovery link used',
+            body:'You can set a new PIN now.' });
+        } else if (hashInfo.kind === 'magiclink') {
+          setToast({ kind:'success', title:'Signed in',
+            body:'You\'re signed in with a magic link.' });
+        }
+      }
+    } catch(e){ /* non-fatal */ }
+
     (async () => {
+      // Give detectSessionInUrl a moment to hydrate the session from the hash.
+      await new Promise(r => setTimeout(r, 120));
       const s = await Auth.getSession();
       if (!alive) return;
       setUser(s && s.user ? s.user : null);
@@ -3736,6 +3819,13 @@ function App() {
     });
     return () => { alive = false; unsub && unsub(); };
   }, []);
+
+  // Auto-dismiss toast
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 6500);
+    return () => clearTimeout(t);
+  }, [toast]);
 
   // ---- Rehydrate profile data on sign-in ---------------------------------
   useEffect(() => {
@@ -3872,6 +3962,13 @@ function App() {
         onRequestSignIn={requestSignIn}
         onSignOut={signOut}
       />
+      {toast && (
+        <div className={'luma-toast' + (toast.kind==='error' ? ' error' : '')} role="status">
+          <button className="luma-toast-close" aria-label="Dismiss" onClick={()=>setToast(null)}>×</button>
+          <strong>{toast.title}</strong>
+          <div>{toast.body}</div>
+        </div>
+      )}
       {route === 'profile' && user ? (
         <window.LumaProfileView
           user={user}
